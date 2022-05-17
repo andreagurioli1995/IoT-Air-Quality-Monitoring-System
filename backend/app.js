@@ -1,10 +1,14 @@
 const mqtt = require('mqtt')
-
+const express = require('express')
+const bodyParser = require('body-parser')
+const route = require('./route')
 const host = '130.136.2.70'
-const port = '1883'
+const portMqtt = '1883'
+const portHttp = 8080
 const clientId = `mqtt_${Math.random().toString(16).slice(3)}`
 
-const connectUrl = `mqtt://${host}:${port}`
+const app = express()
+const connectUrl = `mqtt://${host}:${portMqtt}`
 const client = mqtt.connect(connectUrl, {
   clientId,
   clean: true,
@@ -19,7 +23,7 @@ const topicTemp = topicMqtt + "temp"
 const topicHum = topicMqtt + "hum"
 
 client.on('connect', () => {
-  console.log('Connected')
+  console.log(`Listening in mqtt on port ${portMqtt}.`)
   client.subscribe([topicTemp], () => {
     console.log(`Subscribe to topic '${topicTemp}'`)
   })
@@ -43,4 +47,19 @@ client.on('message', (topic, payload) => {
             } 
         }
     }
+})
+
+app.use(bodyParser.json())
+app.use(
+    bodyParser.urlencoded({
+        extended: true,
+    })
+)
+
+// static directory used to the app
+app.use("/static", express.static('./static/'));
+app.get('/', route.main)
+
+app.listen(portHttp, ()=>{
+  console.log(`Listening in http on port ${portHttp}.`)
 })
