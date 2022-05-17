@@ -41,9 +41,9 @@ client.on('message', (topic, payload) => {
             console.error('NaN value found with on the subscription',  topic)
         } else{
             if(topic == topicTemp){
-                console.log('Received Temperature:', value +"°")
+                console.log('MQTT: Received Temperature:', value +"°")
             } else {
-                console.log('Received Humidity:', value + " %")
+                console.log('MQTT: Received Humidity:', value + " %")
             } 
         }
     }
@@ -58,7 +58,9 @@ app.use(
 
 // static directory used to the app
 app.use("/static", express.static('./static/'));
-app.get('/', route.main)
+
+// Http API
+app.get('/update-data', route.updateData)
 
 app.listen(portHttp, ()=>{
   console.log(`Listening in http on port ${portHttp}.`)
