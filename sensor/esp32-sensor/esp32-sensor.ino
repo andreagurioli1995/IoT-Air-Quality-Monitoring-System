@@ -3,23 +3,26 @@
 #include <DHT.h> 
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <String.h>
 
  
-#define DHTPIN 4 // data pin location, can change during installation 
+#define DHTPIN 27 // data pin location, can change during installation 
+#define MQ2PIN 25
 
 // Protocol switching variables
 int prot_mode = 1;
-
+int smokeA0 = 17;
 // WiFi Data
-const char *ssid = "phone-connection-esp32"; // Enter your WiFi name
-const char *password = "iphone510";  // Enter WiFi password
+const char *ssid = "iPhone"; // Enter your WiFi name
+const char *password = "19951995";  // Enter WiFi password
 
 // MQTT Broker
-const char *mqtt_broker = "broker.emqx.io";
-const char *topic = "sensor/*";
-const char *ping_topic = "sensor/ping";
-const char *mqtt_username = "username";
-const char *mqtt_password = "password";
+const char *mqtt_broker = "130.136.2.70";
+const char *topic = "sensor/1175/";
+const char *temperature_topic = "sensor/1175/temp";
+const char *humidity_topic = "sensor/1175/hum";
+const char *mqtt_username = "iot2020";
+const char *mqtt_password = "mqtt2020*";
 const int mqtt_port = 1883;
 
 // WiFi client declaration
@@ -52,10 +55,12 @@ void mqtt_connection(){
      }
     }
   // publish on ping channel
-  client.publish(ping_topic, "Ping test");
+
 }
 
+
 void setup() { 
+  pinMode(smokeA0, INPUT);
   Serial.begin(19200); 
   dht_sensor.begin(); 
   // connecting to a WiFi network
@@ -90,13 +95,28 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
  
 void loop() { 
+  //analogue reading from gas sensor
+  int analogSensor = analogRead(smokeA0);
+  
   humidity = dht_sensor.readHumidity(); 
   temperature = dht_sensor.readTemperature(); 
+  Serial.println("--------------------------");
+  Serial.print("Gas sensor: ");
+  Serial.println(analogSensor); 
   Serial.println("--------------------------");
   Serial.print("Temperature in Celsius: ");
   Serial.println(temperature); 
   Serial.print("Humidity value: " );
   Serial.println(humidity);
+
+  char buffer_temp[64];
+  int ret = snprintf(buffer_temp, sizeof buffer_temp, "%f", temperature);
+  char buffer_hum[64];
+  int ret2 = snprintf(buffer_hum, sizeof buffer_hum, "%f", humidity);
+  
+  client.publish(temperature_topic, buffer_temp);
+  client.publish(humidity_topic, buffer_hum);
+  
   Serial.println("--------------------------");
   delay(2000); 
   client.loop();
