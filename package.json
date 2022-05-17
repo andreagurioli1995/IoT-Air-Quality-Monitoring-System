@@ -1,0 +1,25 @@
+{
+  "name": "iot-air-quality-monitoring-system",
+  "version": "1.0.0",
+  "description": "The project consists in the deployment of an IoT application for smart home scenarios, including functionalities of IoT-based monitoring of indoor environ- mental parameters such as temperature, humidity and gas concentration, data collection and data forecasting.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andreagurioli1995/IoT-Air-Quality-Monitoring-System.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/andreagurioli1995/IoT-Air-Quality-Monitoring-System/issues"
+  },
+  "homepage": "https://github.com/andreagurioli1995/IoT-Air-Quality-Monitoring-System#readme",
+  "dependencies": {
+    "body-parser": "^1.20.0",
+    "express": "^4.18.1",
+    "mqtt": "^4.3.7",
+    "nodejs": "^0.0.0"
+  }
+}
