@@ -1,2 +1,1 @@
-npm install express
-
+npm install express body-parser mqtt coap http 

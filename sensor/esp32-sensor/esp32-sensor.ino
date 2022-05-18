@@ -5,6 +5,8 @@
 #include <PubSubClient.h>
 #include <HTTPClient.h>
 #include <String.h>
+#include <Arduino_JSON.h>
+
 
  
 #define DHTPIN 4 // Warning: data pin location can change during installation 
@@ -47,19 +49,19 @@ const char *mqtt_password = "mqtt2020*";
 const int mqtt_port = 1883;
 
 // Http protocol
-int http_port = 8080;
-
 // deployed proxy server on Heroku
-String http_hostname = "proxy-iot-quality-air.herokuapp.com";
-// String http_hostname = "localhost";
-String pathname = "/update-data";
+String http_hostname = "proxy-iot-quality-air.herokuapp.com:8080/update-data";
+// String http_hostname = "localhost:8080/update-data";
 
 
-// WiFi client declaration
-WiFiClient espClient;
+// WiFi client declaration for Mqtt
+WiFiClient mqttClient;
+
+// WiFi client declaration for Http
+WiFiClient httpClient;
 
 // Declaration of the PubSubClient on the sensor wifi connection.
-PubSubClient client(espClient);
+PubSubClient client(mqttClient);
 
 // DHT22 sensor with setup on pin
 DHT dht_sensor(DHTPIN,DHT22); 
@@ -195,31 +197,17 @@ void loop() {
     // to-do, sending to coap
   } else if(prot_mode == '3'){
     // http request didn't need setup() configuration except for WiFi connection.
-      Serial.println("Protocol: Http");
-    // check that the sensor is still connected
+    Serial.println("Protocol: Http");
+    WiFiClient client;
     HTTPClient http;
-    // define get request header
-    http.addHeader("Content-Type", "application/json");
-
-    //String temp = String(temperature, 3); 
-    //String hum = String(humidity, 3); 
-    //String gass = String(gas);
-    char JSONMessage[60];
-    sprintf(JSONMessage, "{\"temp\" : %5.2f,\"hum\": %5.2f,\"gas\": %d}", temperature, humidity, gas);
-    String http_path = "http://" + http_hostname + ":" + http_port + pathname;
-    Serial.println("Sending data to the proxy server via HTTP...");
-    http.begin(espClient, http_path);
-    
-    // send get http request
-    Serial.print("Sending: ");
-    Serial.println(JSONMessage);
-    int httpResponseCode = http.POST(JSONMessage);
-
-    // check response status
-    Serial.printf("Response status %d\n", httpResponseCode);
-    // free() request
-    http.end();
-     
+    http.begin(client, http_hostname );
+    http.addHeader("Content-Type", "text/plain");
+    char PostData[60];
+    sprintf(PostData, "{\"temp\" : %5.2f,\"hum\": %5.2f,\"gas\": %d}", temperature, humidity, gas);
+    int httpResponseCode = http.POST(PostData);
+    if(httpResponseCode < 0){
+      Serial.println("Error response received...");
+    }
   }
   
   Serial.println("--------------------------");
