@@ -90,7 +90,8 @@ app.use("/static", express.static('./static/'));
 
 // default API
 app.get("/", (request, response)=>{
-  response.status(200);
+  console.log('https request default API triggered')
+  response.status(200).send();
 })
 
 // update data from sensor via https protocol
@@ -100,11 +101,11 @@ app.get('/update-data', (request, response)=>{
   const hum = request.query.hum
   if(temp == NaN || hum == NaN){
       console.error('HTTP: NaN values on the http sensor request.')
-      response.status(412)
+      response.status(412).send()
   } else {
       console.log('HTTP: Received Temperature:', value +"°")
       console.log('HTTP: Received Humidity:', value + " %")
-      response.status(200)
+      response.status(200).send()
   }
 })
 
