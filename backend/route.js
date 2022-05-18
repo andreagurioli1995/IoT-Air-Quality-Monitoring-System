@@ -2,11 +2,12 @@ const http = require("http");
 const url = require("url")
 
 // Getting data from the sensor
-async function updateData(request, response){
+function updateData(request, response){
+    console.log('HTTP: Update data received...')
     const temp = request.query.temp
     const hum = request.query.hum
     if(temp == NaN || hum == NaN){
-        console.error('NaN values on the http sensor request.')
+        console.error('HTTP: NaN values on the http sensor request.')
         response.status(412)
     } else {
         console.log('HTTP: Received Temperature:', value +"°")
