@@ -1,14 +1,22 @@
+
+// MQTT library
 const mqtt = require('mqtt')
+
+// HTTP libraries
 const express = require('express')
 const bodyParser = require('body-parser')
 const route = require('./route')
-const host = '130.136.2.70'
-const portMqtt = '1883'
-const portHttp = 8080
-const clientId = `mqtt_${Math.random().toString(16).slice(3)}`
 
-const app = express()
-const connectUrl = `mqtt://${host}:${portMqtt}`
+// CoAP libraries
+const coap = require('coap')
+
+// ----- MQTT setup -----
+const hostMqtt = '130.136.2.70' // Broker Mosquitto
+const portMqtt = '1883' // listen port for MQTT
+const clientId = `mqtt_${Math.random().toString(16).slice(3)}` // subscriber id
+const connectUrl = `mqtt://${hostMqtt}:${portMqtt}` // url for connection
+
+// connection on Mosquitto broker
 const client = mqtt.connect(connectUrl, {
   clientId,
   clean: true,
@@ -18,10 +26,13 @@ const client = mqtt.connect(connectUrl, {
   reconnectPeriod: 1000,
 })
 
+// topic setup
 const topicMqtt = 'sensor/1175/'
 const topicTemp = topicMqtt + "temp"
 const topicHum = topicMqtt + "hum"
 
+
+// mqtt handler
 client.on('connect', () => {
   console.log(`Listening in mqtt on port ${portMqtt}.`)
   client.subscribe([topicTemp], () => {
@@ -34,7 +45,6 @@ client.on('connect', () => {
 
 })
 client.on('message', (topic, payload) => {
-
     if(topic  == topicTemp || topic == topicHum){
         value = parseFloat(payload.toString()).toFixed(2)
         if(value == NaN){
@@ -49,6 +59,22 @@ client.on('message', (topic, payload) => {
     }
 })
 
+// ----- CoAP setup -----
+const serverCoap = coap.createServer();
+
+serverCoap.on('request', (req, res) =>{
+  console.log('Payload: ' + req.payload + '\n')
+  res.end(); // void response
+})
+
+serverCoap.listen(()=>{
+  console.log(`Listening in CoAP on port 5683.`)
+})
+// ----- HTTP setup -----
+const portHttp = 8080
+const app = express()
+
+// bodyParser for POST
 app.use(bodyParser.json())
 app.use(
     bodyParser.urlencoded({
@@ -62,6 +88,8 @@ app.use("/static", express.static('./static/'));
 // Http API
 app.get('/update-data', route.updateData)
 
+// Http listen
 app.listen(portHttp, ()=>{
   console.log(`Listening in http on port ${portHttp}.`)
 })
+
