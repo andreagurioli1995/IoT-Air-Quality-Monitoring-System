@@ -90,7 +90,7 @@ app.use("/static", express.static('./static/'));
 // default API
 app.get("/", (request, response)=>{
   console.log('http request default API triggered')
-  response.status(200).send();
+  response.sendStatus(200)
 })
 
 // update data from sensor via http protocol
@@ -100,16 +100,16 @@ app.post('/update-data', (request, response)=>{
   console.log("HTTP: Request JSON:")
   console.log(data)
   if(data.temp == undefined || data.hum == undefined || data.temp==NaN || 
-    data.hum == NaN || data.gas == undefined || data.clientId == undefined){
+    data.hum == NaN || data.gas == undefined || data.clientId == undefined ||
+    data.gps == undefined || data.rss == NaN || data.AQI == NaN || data.clientId == undefined){
     // case of undefined for no parameters or NaN for not valid values
       console.error('HTTP: Invalid values on the http sensor request.')
       response.status(412).send()
   } else {
-    temp = data.temp
-    hum = data.hum
-    console.log('HTTP: Received Temperature:', temp +"°")
-    console.log('HTTP: Received Humidity:', hum + " %")
-    response.status(200).send()
+    console.log('Device Id: ' + data.clientId + " with location: (" + data.gps.lat + ", " +  data.gps.long +")")
+    console.log('Temperature: ' + data.temp + ", Humidity: " + data.hum  + ", Gas: " + data.gas)
+    console.log('WiFi RSS: ' + data.rss + ", AQI: " + data.AQI)
+    response.sendStatus(200)
   }
 })
 
