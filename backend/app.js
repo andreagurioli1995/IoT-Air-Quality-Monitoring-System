@@ -1,10 +1,9 @@
-
 // MQTT library
 const mqtt = require('mqtt')
 
 // HTTP libraries
 const express = require('express')
-const https = require('https')
+const http = require('http')
 const fs = require('fs')
 const bodyParser = require('body-parser')
 
@@ -72,7 +71,7 @@ serverCoap.listen(()=>{
   console.log(`Listening in CoAP on port 5683.`)
 })
 // ----- HTTP setup -----
-const portHttps = 8080
+const portHttp = 8080
 const app = express()
 
 // bodyParser for POST
@@ -86,39 +85,38 @@ app.use(
 // static directory used to the app
 app.use("/static", express.static('./static/'));
 
-// Https API
+// Http API
 
 // default API
 app.get("/", (request, response)=>{
-  console.log('https request default API triggered')
+  console.log('http request default API triggered')
   response.status(200).send();
 })
 
-// update data from sensor via https protocol
-app.get('/update-data', (request, response)=>{
+// update data from sensor via http protocol
+app.post('/update-data', (request, response)=>{
   console.log('HTTP: Update data received...')
-  const temp = request.query.temp
-  const hum = request.query.hum
-  if(temp == NaN || hum == NaN){
-      console.error('HTTP: NaN values on the http sensor request.')
+  const data = JSON.parse(JSON.stringify(request.body));
+  console.log("HTTP: Request JSON:")
+  console.log(data)
+  if(data.temp == undefined || data.hum == undefined || data.temp==NaN || 
+    data.hum == NaN || data.gas == undefined || data.clientId == undefined){
+    // case of undefined for no parameters or NaN for not valid values
+      console.error('HTTP: Invalid values on the http sensor request.')
       response.status(412).send()
   } else {
-      console.log('HTTP: Received Temperature:', value +"°")
-      console.log('HTTP: Received Humidity:', value + " %")
-      response.status(200).send()
+    temp = data.temp
+    hum = data.hum
+    console.log('HTTP: Received Temperature:', temp +"°")
+    console.log('HTTP: Received Humidity:', hum + " %")
+    response.status(200).send()
   }
 })
 
 
-// secure options to let https available
-const secureOptions = {
-  key : fs.readFileSync("key.pem"),
-  cert: fs.readFileSync('cert.pem')
-}
-
-// listening on https
-https.createServer(secureOptions, app).listen(portHttps, ()=>{
-  console.log(`Listening in https on port ${portHttps}.`)
+// listening on http
+http.createServer(app).listen(portHttp, ()=>{
+  console.log(`Listening in http on port ${portHttp}.`)
 })
 
 
