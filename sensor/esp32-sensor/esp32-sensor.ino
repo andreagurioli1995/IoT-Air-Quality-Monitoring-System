@@ -9,10 +9,10 @@
  
 #define DHTPIN 4 // Warning: data pin location, can change during installation 
 #define MQ2PIN 25
+#define SMOKE 34
 
 // Protocol switching variables
-int prot_mode = 3;
-int smokeA0 = 17;
+int prot_mode = 1;
 // WiFi Data
 const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
 const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
@@ -68,7 +68,7 @@ void mqtt_connection(){
 
 
 void setup() { 
-  pinMode(smokeA0, INPUT);
+  pinMode(SMOKE, INPUT);
   Serial.begin(19200); 
   dht_sensor.begin(); 
   // connecting to a WiFi network
@@ -106,7 +106,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
  
 void loop() { 
   //analogue reading from gas sensor
-  int analogSensor = analogRead(smokeA0);
+  int analogSensor = analogRead(SMOKE);
   
   humidity = dht_sensor.readHumidity(); 
   temperature = dht_sensor.readTemperature(); 
@@ -147,8 +147,6 @@ void loop() {
     Serial.printf("Response status %d", &httpResponseCode);
     // free() request
     http.end();
-
-    
   }
   
   Serial.println("--------------------------");
