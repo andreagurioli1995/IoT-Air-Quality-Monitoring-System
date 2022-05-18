@@ -7,11 +7,9 @@ const express = require('express')
 const https = require('https')
 const fs = require('fs')
 const bodyParser = require('body-parser')
-const route = require('./route')
 
 // CoAP libraries
 const coap = require('coap')
-const { fstat } = require('fs')
 
 // ----- MQTT setup -----
 const hostMqtt = '130.136.2.70' // Broker Mosquitto
@@ -89,14 +87,35 @@ app.use(
 app.use("/static", express.static('./static/'));
 
 // Https API
-app.get('/update-data', route.updateData)
 
-// Https listen
+// default API
+app.get("/", (request, response)=>{
+  response.status(200);
+})
+
+// update data from sensor via https protocol
+app.get('/update-data', (request, response)=>{
+  console.log('HTTP: Update data received...')
+  const temp = request.query.temp
+  const hum = request.query.hum
+  if(temp == NaN || hum == NaN){
+      console.error('HTTP: NaN values on the http sensor request.')
+      response.status(412)
+  } else {
+      console.log('HTTP: Received Temperature:', value +"°")
+      console.log('HTTP: Received Humidity:', value + " %")
+      response.status(200)
+  }
+})
+
+
+// secure options to let https available
 const secureOptions = {
   key : fs.readFileSync("key.pem"),
   cert: fs.readFileSync('cert.pem')
 }
 
+// listening on https
 https.createServer(secureOptions, app).listen(portHttps, ()=>{
   console.log(`Listening in https on port ${portHttps}.`)
 })
