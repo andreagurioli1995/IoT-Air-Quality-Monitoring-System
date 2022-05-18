@@ -8,14 +8,24 @@
 
  
 #define DHTPIN 4 // Warning: data pin location, can change during installation 
-#define MQ2PIN 25
 #define SMOKE 34
 
+int SAMPLE_FREQUENCY = 2000;
+int MIN_GAS_VALUE = 4095;
+int MAX_GAS_VALUE = 500;
+int gas_values[5]={0,0,0,0,0};
+float avg_gas;  
+int loops = 0;
+int AQI = 2;
+float RSS = 0; 
+
+
 // Protocol switching variables
-int prot_mode = 1;
+char prot_mode = '1';
+char temp;
 // WiFi Data
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+const char *ssid = "iPhone"; // Warning: enter your WiFi name
+const char *password = "19951995";  // Warning: enter WiFi password
 
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
@@ -28,8 +38,8 @@ const int mqtt_port = 1883;
 
 // Http protocol
 int http_port = 8080;
-String http_hostname = "localhost";
-String pathname = "/update-sensor";
+String http_hostname = "proxy-iot-quality-air.herokuapp.com";
+String pathname = "/update-data";
 
 
 // WiFi client declaration
@@ -40,7 +50,7 @@ PubSubClient client(espClient);
 
 // DHT22 sensor with setup on pin
 DHT dht_sensor(DHTPIN,DHT22); 
-float temperature, humidity; 
+
 
 
 void coap_connection(){
@@ -82,13 +92,11 @@ void setup() {
   Serial.println("Connected to the WiFi network");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-  if(prot_mode == 1){
+  RSS = WiFi.RSSI(); //checking the signal strength
+
     mqtt_connection();
-  } else if(prot_mode == 2) {
     coap_connection();
-  } else if(prot_mode == 3){
-    // nothing, http did only WiFi connection
-  }
+
  
 }
 
@@ -105,11 +113,46 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
  
 void loop() { 
+  RSS = WiFi.RSSI();
+  Serial.print("my strength is ");
+  Serial.println(RSS);
+  loops++;
+  temp = Serial.read();
+  if(temp=='1'|| temp=='2' || temp=='3'){
+    prot_mode=temp;
+  }
+    
   //analogue reading from gas sensor
-  int analogSensor = analogRead(SMOKE);
+ int analogSensor = analogRead(SMOKE);
+///////////////////////////////////////////////calculating avg gas value
+  for(int c=3;c>=0;c--){
+    gas_values[c+1]=gas_values[c];
+  }
+  gas_values[0]=analogSensor;
+  int sum=0;
+   for(int c=0;c<5;c++){
+    sum+=gas_values[c];
+  }
+  if(loops<=5){
+    avg_gas= sum/loops;
+  }else{
+    avg_gas= sum/5;
+  }
+  ///////////////////////////////////////////
+
+  if(avg_gas<= MAX_GAS_VALUE){
+    AQI=0;
+  }else if(MIN_GAS_VALUE>=avg_gas>MAX_GAS_VALUE){
+    AQI=1;
+  }else{
+    AQI=2;
+  }
+   Serial.println("/////////////////////////");
+  Serial.println(AQI);
+   Serial.println("/////////////////////////");
   
-  humidity = dht_sensor.readHumidity(); 
-  temperature = dht_sensor.readTemperature(); 
+  float humidity = dht_sensor.readHumidity(); 
+  float temperature = dht_sensor.readTemperature(); 
   Serial.println("--------------------------");
   Serial.print("Gas sensor: ");
   Serial.println(analogSensor); 
@@ -119,38 +162,43 @@ void loop() {
   Serial.print("Humidity value: " );
   Serial.println(humidity);
 
-  char buffer_temp[64];
+  char buffer_temp[sizeof(float)];
   int ret = snprintf(buffer_temp, sizeof buffer_temp, "%f", temperature);
-  char buffer_hum[64];
+  char buffer_hum[sizeof(float)];
   int ret2 = snprintf(buffer_hum, sizeof buffer_hum, "%f", humidity);
 
-  if (prot_mode == 1){
+  char buffer_gas[sizeof(double)];
+  int ret3 = snprintf(buffer_gas, sizeof buffer_gas, "%d", analogSensor);
+
+  if (prot_mode == '1'){
+    Serial.println("mqtt protocol");
     // mqtt publish
     client.publish(temperature_topic, buffer_temp);
     client.publish(humidity_topic, buffer_hum);
-  } else if(prot_mode == 2){
+  } else if(prot_mode == '2'){
+    Serial.println("coap protocol");
     // to-do, sending to coap
-  } else if(prot_mode == 3){
+  } else if(prot_mode == '3'){
     // http request didn't need setup() configuration except for WiFi connection.
-      
+      Serial.println("http protocol");
     // check that the sensor is still connected
     HTTPClient http;
     // define get request
-    String http_path = "http://" + http_hostname + ":" + http_port + pathname + "?temp=" + ret + "?hum=" + ret2;
-    Serial.println("Sending" + http_path);
-    http.begin(http_path.c_str());
+    String http_path = "https://" + http_hostname + ":" + http_port + pathname + "?temp=" + buffer_temp + "?hum=" + buffer_hum + "?gas=" + buffer_gas;
+    Serial.println("Sending " + http_path);
+    http.begin(http_path);
 
     // send get http request
     int httpResponseCode = http.GET();
 
     // check response status
-    Serial.printf("Response status %d", &httpResponseCode);
+    Serial.printf("Response status %d\n", httpResponseCode);
     // free() request
     http.end();
   }
   
   Serial.println("--------------------------");
-  delay(2000); 
+  delay(SAMPLE_FREQUENCY); 
   client.loop();
  
 }
