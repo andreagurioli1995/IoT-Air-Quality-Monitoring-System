@@ -4,11 +4,14 @@ const mqtt = require('mqtt')
 
 // HTTP libraries
 const express = require('express')
+const https = require('https')
+const fs = require('fs')
 const bodyParser = require('body-parser')
 const route = require('./route')
 
 // CoAP libraries
 const coap = require('coap')
+const { fstat } = require('fs')
 
 // ----- MQTT setup -----
 const hostMqtt = '130.136.2.70' // Broker Mosquitto
@@ -71,7 +74,7 @@ serverCoap.listen(()=>{
   console.log(`Listening in CoAP on port 5683.`)
 })
 // ----- HTTP setup -----
-const portHttp = 8080
+const portHttps = 8080
 const app = express()
 
 // bodyParser for POST
@@ -85,11 +88,17 @@ app.use(
 // static directory used to the app
 app.use("/static", express.static('./static/'));
 
-// Http API
+// Https API
 app.get('/update-data', route.updateData)
 
-// Http listen
-app.listen(portHttp, ()=>{
-  console.log(`Listening in http on port ${portHttp}.`)
+// Https listen
+const secureOptions = {
+  key : fs.readFileSync("key.pem"),
+  cert: fs.readFileSync('cert.pem')
+}
+
+https.createServer(secureOptions, app).listen(portHttps, ()=>{
+  console.log(`Listening in https on port ${portHttps}.`)
 })
+
 
