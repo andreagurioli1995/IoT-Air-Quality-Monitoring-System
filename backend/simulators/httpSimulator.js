@@ -13,10 +13,11 @@ class HttpSimulator {
 
         //set a reference to the request module
         var request = require('request'),
-            //stubs
-            postData = {},
-            postConfig = {},
-            postSuccessHandler = null;
+        
+        //stubs
+        postData = {},
+        postConfig = {},
+        postSuccessHandler = null;
 
         //create an object to send as POST data
         postData = {

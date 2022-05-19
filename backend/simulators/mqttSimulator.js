@@ -41,7 +41,7 @@ class MqttSimulator {
             client.publish('sensor/1175/hum', payloads.hum + "")
             client.publish('sensor/1175/gas', payloads.gas + "")
             client.publish('sensor/1175/AQI', payloads.AQI + "")
-            client.publish('sensor/1175/sensorMetadata', JSON.stringify({RSS: payloads.rss, ClientId: payloads.clientId, GPS : payloads.gps}))
+            client.publish('sensor/1175/sensorMetadata', JSON.stringify({rss: payloads.rss, clientId: payloads.clientId, gps: payloads.gps}))
             client.end()
           })
         

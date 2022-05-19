@@ -1,14 +1,16 @@
 // MQTT library
 const mqtt = require('mqtt')
+const mqttSetup = require('./mqttSetup')
 
 // HTTP libraries
 const express = require('express')
 const http = require('http')
-const fs = require('fs')
 const bodyParser = require('body-parser')
+const httpRoute = require('./httpRoute')
 
 // CoAP libraries
 const coap = require('coap')
+const coapRoute = require('./coapRoute')
 
 // ----- MQTT setup -----
 const hostMqtt = '130.136.2.70' // Broker Mosquitto
@@ -25,47 +27,17 @@ const client = mqtt.connect(connectUrl, {
   password: 'mqtt2020*',
   reconnectPeriod: 1000,
 })
-
-// topic setup
 const topicMqtt = 'sensor/1175/'
-const topicTemp = topicMqtt + "temp"
-const topicHum = topicMqtt + "hum"
+const channels = ["gas", "temp", "hum", "AQI", "sensorMetadata"]
 
-
-// mqtt handler
-client.on('connect', () => {
-  console.log(`Listening in mqtt on port ${portMqtt}.`)
-  client.subscribe([topicTemp], () => {
-    console.log(`Subscribe to topic '${topicTemp}'`)
-  })
-
-  client.subscribe([topicHum], () => {
-    console.log(`Subscribe to topic '${topicHum}'`)
-  })
-
-})
-client.on('message', (topic, payload) => {
-    if(topic  == topicTemp || topic == topicHum){
-        value = parseFloat(payload.toString()).toFixed(2)
-        if(value == NaN){
-            console.error('NaN value found with on the subscription',  topic)
-        } else{
-            if(topic == topicTemp){
-                console.log('MQTT: Received Temperature:', value +"°")
-            } else {
-                console.log('MQTT: Received Humidity:', value + " %")
-            } 
-        }
-    }
-})
+mqttSetup.setup(client, portMqtt, topicMqtt, channels)
 
 // ----- CoAP setup -----
 const serverCoap = coap.createServer();
-
-serverCoap.on('request', (req, res) =>{
-  console.log('Payload: ' + req.payload + '\n')
-  res.end(); // void response
+serverCoap.on('connection', ()=>{
+  console.log('CoAP: Connection is activated.')
 })
+serverCoap.on('request', coapRoute.request)
 
 serverCoap.listen(()=>{
   console.log(`Listening in CoAP on port 5683.`)
@@ -86,7 +58,6 @@ app.use(
 app.use("/static", express.static('./static/'));
 
 // Http API
-
 // default API
 app.get("/", (request, response)=>{
   console.log('http request default API triggered')
@@ -94,24 +65,7 @@ app.get("/", (request, response)=>{
 })
 
 // update data from sensor via http protocol
-app.post('/update-data', (request, response)=>{
-  console.log('HTTP: Update data received...')
-  const data = JSON.parse(JSON.stringify(request.body));
-  console.log("HTTP: Request JSON:")
-  console.log(data)
-  if(data.temp == undefined || data.hum == undefined || data.temp==NaN || 
-    data.hum == NaN || data.gas == undefined || data.clientId == undefined ||
-    data.gps == undefined || data.rss == NaN || data.AQI == NaN || data.clientId == undefined){
-    // case of undefined for no parameters or NaN for not valid values
-      console.error('HTTP: Invalid values on the http sensor request.')
-      response.status(412).send()
-  } else {
-    console.log('Device Id: ' + data.clientId + " with location: (" + data.gps.lat + ", " +  data.gps.long +")")
-    console.log('Temperature: ' + data.temp + ", Humidity: " + data.hum  + ", Gas: " + data.gas)
-    console.log('WiFi RSS: ' + data.rss + ", AQI: " + data.AQI)
-    response.sendStatus(200)
-  }
-})
+app.post('/update-data', httpRoute.updateData)
 
 
 // listening on http
