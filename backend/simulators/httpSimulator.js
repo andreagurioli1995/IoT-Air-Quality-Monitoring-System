@@ -21,13 +21,9 @@ class HttpSimulator {
 
         //create an object to send as POST data
         postData = {
-            clientId: '138713571',
-            AQI: 1,
-            gas: 300,
-            temp: 32.20,
-            hum: 40.20,
-            rss: -60,
-            gps: {lat : 41.40338, long : 2.17403},
+            minGas : 0,
+            maxGas: 3000,
+            sampleFrequency: 2000,
         };
 
         console.log(JSON.stringify(postData))
@@ -48,7 +44,7 @@ class HttpSimulator {
     }
 }
 
-const simulator = new HttpSimulator("localhost", 8080, "update-data");
+const simulator = new HttpSimulator("localhost", 8080, "update-setup");
 simulator.request();
 
 

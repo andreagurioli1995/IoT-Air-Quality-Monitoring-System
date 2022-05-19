@@ -3,12 +3,9 @@
 #include <DHT.h> 
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <HTTPClient.h>
 #include <String.h>
 #include <Arduino_JSON.h>
 
-
- 
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
 
@@ -25,29 +22,32 @@ int AQI = 2;
 float RSS = 0; 
 
 // Variables for AQI calculations
-int gas_values[5]= {0,0,0,0,0};
+int gas_values[5] = {0,0,0,0,0};
 float avg_gas;  
 
 //counter for gas mean purposes
 int loops = 0;
 
-
 // Protocol switching variables
 char prot_mode = '1';
 char temp;
+
 // WiFi Data
- const char *ssid = "iPhone"; // Warning: enter your WiFi name
- const char *password = "19951995";  // Warning: enter WiFi password
-//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+//const char *ssid = "iPhone"; // Warning: enter your WiFi name
+//const char *password = "19951995";  // Warning: enter WiFi password
+const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
 const char *topic = "sensor/1175/";
+
+// setup variables
 const char *topic_receive_freq = "sensor/1175/freq";
 const char *topic_receive_mingas = "sensor/1175/ming";
 const char *topic_receive_maxgas = "sensor/1175/maxg";
 
+// sensor variables
 const char *temperature_topic = "sensor/1175/temp";
 const char *humidity_topic = "sensor/1175/hum";
 const char *gas_topic = "sensor/1175/gas";
@@ -56,21 +56,19 @@ const char *rss_topic = "sensor/1175/rss";
 const char *gps_topic = "sensor/1175/gps";
 const char *id_topic = "sensor/1175/id";
 
+// mqtt variables
 const char *mqtt_username = "iot2020";
 const char *mqtt_password = "mqtt2020*";
 const int mqtt_port = 1883;
 
-// Http protocol
+// CoAP protocol
 // deployed proxy server on Heroku
-String http_hostname = "proxy-iot-quality-air.herokuapp.com:8080/update-data";
-// String http_hostname = "localhost:8080/update-data";
+String http_hostname = "proxy-iot-quality-air.herokuapp.com";
+// String http_hostname = "localhost"
 
 
 // WiFi client declaration for Mqtt
 WiFiClient mqttClient;
-
-// WiFi client declaration for Http
-WiFiClient httpClient;
 
 // Declaration of the PubSubClient on the sensor wifi connection.
 PubSubClient client(mqttClient);
@@ -82,7 +80,6 @@ DHT dht_sensor(DHTPIN,DHT22);
 void coap_connection(){
   // to-do: manage the same value trasmission on coap protocol
 }
-
 
 void mqtt_connection(){
   client.setServer(mqtt_broker, mqtt_port);
@@ -106,9 +103,7 @@ void mqtt_connection(){
     }
 }
 
-
 void setup() { 
-  
   pinMode(SMOKE, INPUT);
   Serial.begin(19200); 
   dht_sensor.begin(); 
@@ -127,8 +122,6 @@ void setup() {
   // setup mqtt and coap
   mqtt_connection();
   coap_connection();
-
- 
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -136,6 +129,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
  Serial.println(topic);
  char bufferfreq[length];
  
+ // updating the sample_frequency value
  if(!strcmp(topic,topic_receive_freq)){
    for (int i = 0; i < length; i++) {
      bufferfreq[i]=(char) payload[i];
@@ -144,6 +138,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
  }
 
+ // updating the min_gas_value
   if(!strcmp(topic,topic_receive_mingas)){
    for (int i = 0; i < length; i++) {
      bufferfreq[i]=(char) payload[i];
@@ -151,6 +146,8 @@ void callback(char *topic, byte *payload, unsigned int length) {
      MIN_GAS_VALUE = atoi(bufferfreq);  
 
  }
+
+ // updating the max_gas_value
    if(!strcmp(topic,topic_receive_maxgas)){
    for (int i = 0; i < length; i++) {
      bufferfreq[i]=(char) payload[i];
@@ -159,7 +156,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
  }
 
- 
+ // printing of the message received 
  Serial.print("Message:");
  for (int i = 0; i < length; i++) {
      Serial.print((char) payload[i]);
@@ -169,10 +166,6 @@ void callback(char *topic, byte *payload, unsigned int length) {
 }
 
 
-
-
-
- 
 void loop() { 
   //loop for mqtt subscribe 
   client.loop();
@@ -187,10 +180,10 @@ void loop() {
     prot_mode=temp;
   }
     
-  //analogue reading from gas sensor
+  // analogue reading from gas sensor
  int gas = analogRead(SMOKE);
 
-  //calculating Average Gas Value
+  // calculating Average Gas Value
   for(int c=3; c>=0; c--){
     gas_values[c+1] = gas_values[c];
   }
@@ -244,13 +237,14 @@ void loop() {
   snprintf(buffer_id, sizeof buffer_id, "%lf", id);
 
 
-  ///////////////////////////////////test purposes
+  // --------------- Test Setup in MQTT  ---------------
   /*
   char buffer_ff[sizeof(double)];
   snprintf(buffer_ff, sizeof buffer_ff, "%d", SAMPLE_FREQUENCY);
   client.publish(topic_receive_freq, buffer_ff);
   */
-  ////////////////////////////////////////
+ // ----------------------------------------------------
+  
   
   if (prot_mode == '1'){
     Serial.println("Protocol: MQTT");
@@ -265,19 +259,8 @@ void loop() {
   } else if(prot_mode == '2'){
     Serial.println("Protocol: CoAP");
     // to-do, sending to coap
-  } else if(prot_mode == '3'){
-    // http request didn't need setup() configuration except for WiFi connection.
-    Serial.println("Protocol: Http");
-    WiFiClient client;
-    HTTPClient http;
-    http.begin(client, http_hostname );
-    http.addHeader("Content-Type", "text/plain");
-    char PostData[60];
-    sprintf(PostData, "{\"temp\" : %5.2f,\"hum\": %5.2f,\"gas\": %d}", temperature, humidity, gas);
-    int httpResponseCode = http.POST(PostData);
-    if(httpResponseCode < 0){
-      Serial.println("Error response received...");
-    }
+  } else{
+    Serial.println("Invalid Protocol Value: Digit 1 for MQTT or 2 for CoAP");
   }
   
   Serial.println("--------------------------");

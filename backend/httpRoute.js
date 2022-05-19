@@ -1,20 +1,42 @@
-updateData = (request, response)=>{
-    console.log('HTTP: Update data received...')
-    const data = JSON.parse(JSON.stringify(request.body));
-    if(data.temp == undefined || data.hum == undefined || data.temp==NaN || 
-      data.hum == NaN || data.gas == undefined || data.clientId == undefined ||
-      data.gps == undefined || data.rss == NaN || data.AQI == NaN || data.clientId == undefined){
-      // case of undefined for no parameters or NaN for not valid values
-        console.error('HTTP: Invalid values on the http sensor request.')
-        response.status(412).send()
-    } else {
-      console.log('HTTP: Device Id: ' + data.clientId + " with location: (" + data.gps.lat + "°, " +  data.gps.long +"°)")
-      console.log('HTTP: Temperature: ' + data.temp + "°, Humidity: " + data.hum  + " %, Gas: " + data.gas)
-      console.log('HTTP: WiFi RSS: ' + data.rss + " dBm, AQI: " + data.AQI + "\n")
-      response.sendStatus(200)
-    }
+const path = require('path')
+const mqtt = require('./mqttSetup')
+const { body } = require('express-validator');
+
+updateSetup = (request, response) => {
+  console.log('HTTP: Update data received...')
+  console.log('-----------------------------')
+  const data = {
+    minGas: request.body.minGas,
+    maxGas: request.body.maxGas,
+    sampleFrequency: request.body.sampleFrequency,
   }
 
-  module.exports = {
-      updateData,
+  // check data
+
+  if (data.minGas > data.maxGas || data.sampleFrequency < 0) {
+    console.log('HTTP Error: Invalid values received.')
+    console.log('-----------------------------')
   }
+  else {
+
+    if (data.minGas != undefined) {
+      console.log('HTTP: Received MIN_GAS_VALUE from the dashboard: ' + data.maxGas)
+    }
+
+    if (data.maxGas != undefined) {
+      console.log('HTTP: Received MAX_GAS_VALUE from the dashboard: ' + data.maxGas)
+    }
+
+    if (data.sampleFrequency != undefined) {
+      console.log('HTTP: Received SAMPLE_FREQUENCY from the dashboard: ' + data.sampleFrequency)
+    }
+    console.log('-----------------------------')
+    mqtt.forward(data) // forward on MQTT channels
+  }
+  response.redirect("/")
+
+}
+
+module.exports = {
+  updateSetup,
+}

@@ -1,8 +1,13 @@
 
+const coap = require('coap')
+
 request = (req, res) =>{
-    console.log('Payload: ' + req.payload + '\n')
-    res.end(200); // void response
-  }
+  coap.request({
+    port: 5867,
+    pathname: "/r/hello",
+    method: 'PUT'
+  })
+}
 
 module.exports = {
     request,
