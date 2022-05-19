@@ -96,7 +96,6 @@ void mqtt_connection(){
          client.subscribe(topic_receive_freq);
          client.subscribe(topic_receive_mingas);
          client.subscribe(topic_receive_maxgas);
-         client.subscribe(rss_topic);
          
      } else {
          // connection error handler
@@ -260,7 +259,7 @@ void loop() {
     client.publish(humidity_topic, buffer_hum,0);
     client.publish(gas_topic, buffer_gas,0);
     client.publish(aqi_topic, buffer_aqi,0);
-    client.publish(rss_topic, buffer_rss,1);
+    client.publish(rss_topic, buffer_rss,0);
     client.publish(gps_topic, gps,0);
     client.publish(id_topic, id,0);
   } else if(prot_mode == '2'){
