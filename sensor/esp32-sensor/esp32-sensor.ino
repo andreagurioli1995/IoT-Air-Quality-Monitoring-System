@@ -12,6 +12,8 @@
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
 
+const char *gps = "44.497,11.353";
+const char *id = "EA60";
 
 // setting metadata
 int SAMPLE_FREQUENCY = 2000;
@@ -26,7 +28,7 @@ float RSS = 0;
 int gas_values[5]= {0,0,0,0,0};
 float avg_gas;  
 
-//
+//counter for gas mean purposes
 int loops = 0;
 
 
@@ -34,16 +36,26 @@ int loops = 0;
 char prot_mode = '1';
 char temp;
 // WiFi Data
-// const char *ssid = "iPhone"; // Warning: enter your WiFi name
-// const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+ const char *ssid = "iPhone"; // Warning: enter your WiFi name
+ const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
 const char *topic = "sensor/1175/";
+const char *topic_receive_freq = "sensor/1175/freq";
+const char *topic_receive_mingas = "sensor/1175/ming";
+const char *topic_receive_maxgas = "sensor/1175/maxg";
+
 const char *temperature_topic = "sensor/1175/temp";
 const char *humidity_topic = "sensor/1175/hum";
+const char *gas_topic = "sensor/1175/gas";
+const char *aqi_topic = "sensor/1175/aqi";
+const char *rss_topic = "sensor/1175/rss";
+const char *gps_topic = "sensor/1175/gps";
+const char *id_topic = "sensor/1175/id";
+
 const char *mqtt_username = "iot2020";
 const char *mqtt_password = "mqtt2020*";
 const int mqtt_port = 1883;
@@ -81,6 +93,11 @@ void mqtt_connection(){
      Serial.printf("The client %s connects to the public mqtt broker\n", client_id.c_str());
      if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
          Serial.println("Public emqx mqtt broker connected");
+         client.subscribe(topic_receive_freq);
+         client.subscribe(topic_receive_mingas);
+         client.subscribe(topic_receive_maxgas);
+         client.subscribe(rss_topic);
+         
      } else {
          // connection error handler
          Serial.print("failed with state ");
@@ -92,6 +109,7 @@ void mqtt_connection(){
 
 
 void setup() { 
+  
   pinMode(SMOKE, INPUT);
   Serial.begin(19200); 
   dht_sensor.begin(); 
@@ -115,8 +133,34 @@ void setup() {
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
- Serial.print("Message arrived in topic: ");
+ Serial.print("Message arrived on topic: ");
  Serial.println(topic);
+ char bufferfreq[length];
+ 
+ if(!strcmp(topic,topic_receive_freq)){
+   for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+      }
+    SAMPLE_FREQUENCY = atoi(bufferfreq);  
+
+ }
+
+  if(!strcmp(topic,topic_receive_mingas)){
+   for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+      }
+     MIN_GAS_VALUE = atoi(bufferfreq);  
+
+ }
+   if(!strcmp(topic,topic_receive_maxgas)){
+   for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+      }
+     MAX_GAS_VALUE = atoi(bufferfreq);  
+
+ }
+
+ 
  Serial.print("Message:");
  for (int i = 0; i < length; i++) {
      Serial.print((char) payload[i]);
@@ -125,8 +169,15 @@ void callback(char *topic, byte *payload, unsigned int length) {
  Serial.println("-----------------------");
 }
 
+
+
+
+
  
 void loop() { 
+  //loop for mqtt subscribe 
+  client.loop();
+  
   RSS = WiFi.RSSI();
   Serial.println("--------- Data -----------");
   Serial.print("WiFi RSS Strength: ");
@@ -186,12 +237,32 @@ void loop() {
   snprintf(buffer_hum, sizeof buffer_hum, "%lf", humidity);
   char buffer_gas[sizeof(double)];
   snprintf(buffer_gas, sizeof buffer_gas, "%lf", gas);
+  char buffer_aqi[sizeof(double)];
+  snprintf(buffer_aqi, sizeof buffer_aqi, "%lf", AQI);
+  char buffer_rss[sizeof(double)];
+  snprintf(buffer_rss, sizeof buffer_rss, "%lf", RSS);
+  char buffer_id[sizeof(double)];
+  snprintf(buffer_id, sizeof buffer_id, "%lf", id);
+
+
+  ///////////////////////////////////test purposes
+  /*
+  char buffer_ff[sizeof(double)];
+  snprintf(buffer_ff, sizeof buffer_ff, "%d", SAMPLE_FREQUENCY);
+  client.publish(topic_receive_freq, buffer_ff);
+  */
+  ////////////////////////////////////////
   
   if (prot_mode == '1'){
     Serial.println("Protocol: MQTT");
     // mqtt publish
-    client.publish(temperature_topic, buffer_temp);
-    client.publish(humidity_topic, buffer_hum);
+    client.publish(temperature_topic, buffer_temp,0);
+    client.publish(humidity_topic, buffer_hum,0);
+    client.publish(gas_topic, buffer_gas,0);
+    client.publish(aqi_topic, buffer_aqi,0);
+    client.publish(rss_topic, buffer_rss,1);
+    client.publish(gps_topic, gps,0);
+    client.publish(id_topic, id,0);
   } else if(prot_mode == '2'){
     Serial.println("Protocol: CoAP");
     // to-do, sending to coap
