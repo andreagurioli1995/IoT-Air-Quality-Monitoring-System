@@ -157,7 +157,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
  }
 
  // printing of the message received 
- Serial.print("Message:");
+ Serial.print("Message Metadata Received from the Sensor:");
  for (int i = 0; i < length; i++) {
      Serial.print((char) payload[i]);
  }
