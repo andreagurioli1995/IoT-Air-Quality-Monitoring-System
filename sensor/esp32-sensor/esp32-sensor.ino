@@ -13,15 +13,17 @@
 
 const float lat = 44.497;
 const float lng = 11.353;
-const char *id = "EA60";
+const char *id = "EM01";
 
 const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
-//coap observing variable
-bool obs=false;
+
+// coap observing variable
+bool obs = false;
 IPAddress IP;
-int PORT=NULL;
 CoapPacket pc;
+int PORT = NULL;
+
 
 // setting metadata
 int SAMPLE_FREQUENCY = 2000;
@@ -80,10 +82,6 @@ String http_hostname = "proxy-iot-quality-air.herokuapp.com";
 // WiFi client declaration for Mqtt
 WiFiClient mqttClient;
 
-
-
-  
-
 // Declaration of the PubSubClient on the sensor wifi connection.
 PubSubClient client(mqttClient);
 
@@ -92,8 +90,6 @@ DHT dht_sensor(DHTPIN,DHT22);
 
 // CoAP server endpoint URL
 void callback_data(CoapPacket &packet, IPAddress ip, int port) {
-
- 
   
   // send response
   char p[packet.payloadlen + 1];
@@ -112,12 +108,9 @@ void callback_data(CoapPacket &packet, IPAddress ip, int port) {
     obs=false;
   }
 
-
-   char buffer_ff[sizeof(doc)];
+  char buffer_ff[sizeof(doc)];
   serializeJson(doc, buffer_ff);
   coap.sendResponse(ip, port,packet.messageid, buffer_ff);
-
-    
 
 }
 
@@ -213,10 +206,8 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
 
 void loop() { 
-  
 
-
-  //loop for mqtt subscribe 
+  // loop for mqtt subscribe 
   client.loop();
   
   RSS = WiFi.RSSI();
@@ -248,9 +239,9 @@ void loop() {
   }
 
   // defining value of AQI based on the average value
-  if(avg_gas<= MAX_GAS_VALUE){
+  if(avg_gas <= MAX_GAS_VALUE){
     AQI=0;
-  }else if(MIN_GAS_VALUE>=avg_gas>MAX_GAS_VALUE){
+  }else if(MIN_GAS_VALUE >= avg_gas > MAX_GAS_VALUE){
     AQI=1;
   }else{
     AQI=2;
@@ -270,7 +261,7 @@ void loop() {
   Serial.print("Humidity value: " );
   Serial.println(humidity);
 
-  //creating the json file
+  // creating the json file
   doc["id"] = id;
   doc["gps"]["lat"] = lat;
   doc["gps"]["lng"] = lng;

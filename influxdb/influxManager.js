@@ -72,7 +72,7 @@ function main() {
         if (value == 'temperature' || value == 'humidity') {
             let min = 0
             let max = 35
-            manager.writeApi(clientId, value, (Math.random() * (0.120 - 0.0200) + 0.0200).toFixed(4))
+            manager.writeApi(clientId, value, (Math.random() * (max - min) + min).toFixed(4))
         } else if (value == 'aqi') {
             manager.writeApi(clientId, value, Math.floor(Math.random() * 3))
         } else if (value == 'gas') {
