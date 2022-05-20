@@ -12,4 +12,4 @@ If we want to set InfluxDB locally and use it for the Internet of Things air qua
 - Focus the InfluxDB initialization and setup on https://docs.influxdata.com/influxdb/v2.2/install/.
 - Setup your global variable for the Influx token given by the initialization `export INFLUX_TOKEN=<token-here>`.
 - Open the first terminal and digit `influxd` to open the InfluxDB logging system.
-- Open the second teminal and digit `telegraf --config http://localhost:8086/api/v2/telegrafs/096444e923190000` with 096444e923190000 an example of a serial code given during the telegraf installation.
+- Open the second teminal and digit `telegraf --config http://localhost:8086/api/v2/telegrafs/<serial-code>` with the serial code given during the telegraf installation.
