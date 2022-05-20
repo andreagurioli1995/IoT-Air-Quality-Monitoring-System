@@ -2,14 +2,17 @@
 #include<SPI.h> 
 #include <DHT.h> 
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include <String.h>
-#include <Arduino_JSON.h>
+#include <ArduinoJson.h>
+#include <coap-simple.h>
 
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
 
-const char *gps = "44.497,11.353";
+const float lat = 44.497;
+const float lng = 11.353;
 const char *id = "EA60";
 
 // setting metadata
@@ -33,27 +36,25 @@ char prot_mode = '1';
 char temp;
 
 // WiFi Data
-//const char *ssid = "iPhone"; // Warning: enter your WiFi name
-//const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+const char *ssid = "iPhone"; // Warning: enter your WiFi name
+const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
 const char *topic = "sensor/1175/";
 
+//coap instantiation
+WiFiUDP udp;
+Coap coap(udp);
 // setup variables
 const char *topic_receive_freq = "sensor/1175/freq";
 const char *topic_receive_mingas = "sensor/1175/ming";
 const char *topic_receive_maxgas = "sensor/1175/maxg";
 
 // sensor variables
-const char *temperature_topic = "sensor/1175/temp";
-const char *humidity_topic = "sensor/1175/hum";
-const char *gas_topic = "sensor/1175/gas";
-const char *aqi_topic = "sensor/1175/aqi";
-const char *rss_topic = "sensor/1175/rss";
-const char *gps_topic = "sensor/1175/gps";
+const char *data_topic = "sensor/1175/data";
 const char *id_topic = "sensor/1175/id";
 
 // mqtt variables
@@ -70,15 +71,25 @@ String http_hostname = "proxy-iot-quality-air.herokuapp.com";
 // WiFi client declaration for Mqtt
 WiFiClient mqttClient;
 
+
+
+  
+
 // Declaration of the PubSubClient on the sensor wifi connection.
 PubSubClient client(mqttClient);
 
 // DHT22 sensor with setup on pin
 DHT dht_sensor(DHTPIN,DHT22); 
 
+// CoAP server endpoint URL
+void callback_light(CoapPacket &packet, IPAddress ip, int port) {
+
+}
 
 void coap_connection(){
-  // to-do: manage the same value trasmission on coap protocol
+  coap.server(callback_light, "data");
+  coap.start();
+  
 }
 
 void mqtt_connection(){
@@ -167,6 +178,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
 
 void loop() { 
+  
+  const int capacity = JSON_OBJECT_SIZE(192);
+   StaticJsonDocument<capacity> doc;
+
   //loop for mqtt subscribe 
   client.loop();
   
@@ -221,44 +236,32 @@ void loop() {
   Serial.print("Humidity value: " );
   Serial.println(humidity);
 
+  //creating the json file
+  doc["id"] = id;
+  doc["gps"]["lat"] = lat;
+  doc["gps"]["lng"] = lng;
+  doc["rss"] = RSS;
+  doc["temp"] = temperature;
+  doc["hum"] = humidity;
+  doc["gasv"]["gas"] = gas;
+  doc["gasv"]["AQI"] = AQI;
+
 
   // preparing buffers for string conversation
-  char buffer_temp[sizeof(double)];
-  snprintf(buffer_temp, sizeof buffer_temp, "%lf", temperature);
-  char buffer_hum[sizeof(double)];
-  snprintf(buffer_hum, sizeof buffer_hum, "%lf", humidity);
-  char buffer_gas[sizeof(double)];
-  snprintf(buffer_gas, sizeof buffer_gas, "%lf", gas);
-  char buffer_aqi[sizeof(double)];
-  snprintf(buffer_aqi, sizeof buffer_aqi, "%lf", AQI);
-  char buffer_rss[sizeof(double)];
-  snprintf(buffer_rss, sizeof buffer_rss, "%lf", RSS);
-  char buffer_id[sizeof(double)];
-  snprintf(buffer_id, sizeof buffer_id, "%lf", id);
-
-
-  // --------------- Test Setup in MQTT  ---------------
-  /*
-  char buffer_ff[sizeof(double)];
-  snprintf(buffer_ff, sizeof buffer_ff, "%d", SAMPLE_FREQUENCY);
-  client.publish(topic_receive_freq, buffer_ff);
-  */
+  char buffer_ff[sizeof(doc)];
+  serializeJson(doc, buffer_ff);
  // ----------------------------------------------------
   
   
   if (prot_mode == '1'){
     Serial.println("Protocol: MQTT");
     // mqtt publish
-    client.publish(temperature_topic, buffer_temp,0);
-    client.publish(humidity_topic, buffer_hum,0);
-    client.publish(gas_topic, buffer_gas,0);
-    client.publish(aqi_topic, buffer_aqi,0);
-    client.publish(rss_topic, buffer_rss,0);
-    client.publish(gps_topic, gps,0);
-    client.publish(id_topic, id,0);
+
+    client.publish(id_topic, buffer_ff,0);
   } else if(prot_mode == '2'){
     Serial.println("Protocol: CoAP");
-    // to-do, sending to coap
+    //coap.sendResponse(ip, port, packet.messageid, buffer_ff);
+    coap.loop();
   } else{
     Serial.println("Invalid Protocol Value: Digit 1 for MQTT or 2 for CoAP");
   }
