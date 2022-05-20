@@ -15,6 +15,14 @@ const float lat = 44.497;
 const float lng = 11.353;
 const char *id = "EA60";
 
+const int capacity = JSON_OBJECT_SIZE(192);
+StaticJsonDocument<capacity> doc;
+//coap observing variable
+bool obs=false;
+IPAddress IP;
+int PORT=NULL;
+CoapPacket pc;
+
 // setting metadata
 int SAMPLE_FREQUENCY = 2000;
 int MIN_GAS_VALUE = 4095;
@@ -48,6 +56,7 @@ const char *topic = "sensor/1175/";
 //coap instantiation
 WiFiUDP udp;
 Coap coap(udp);
+
 // setup variables
 const char *topic_receive_freq = "sensor/1175/freq";
 const char *topic_receive_mingas = "sensor/1175/ming";
@@ -82,12 +91,38 @@ PubSubClient client(mqttClient);
 DHT dht_sensor(DHTPIN,DHT22); 
 
 // CoAP server endpoint URL
-void callback_light(CoapPacket &packet, IPAddress ip, int port) {
+void callback_data(CoapPacket &packet, IPAddress ip, int port) {
+
+ 
+  
+  // send response
+  char p[packet.payloadlen + 1];
+  memcpy(p, packet.payload, packet.payloadlen);
+  p[packet.payloadlen] = NULL;
+  
+  String message(p);
+  
+  if(message.equals("1")){
+    obs=true;
+    IP=ip;
+    PORT=port;
+    pc= packet;   
+    
+  }else if(message.equals("0")){
+    obs=false;
+  }
+
+
+   char buffer_ff[sizeof(doc)];
+  serializeJson(doc, buffer_ff);
+  coap.sendResponse(ip, port,packet.messageid, buffer_ff);
+
+    
 
 }
 
 void coap_connection(){
-  coap.server(callback_light, "data");
+  coap.server(callback_data, "data");
   coap.start();
   
 }
@@ -179,8 +214,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
 void loop() { 
   
-  const int capacity = JSON_OBJECT_SIZE(192);
-   StaticJsonDocument<capacity> doc;
+
 
   //loop for mqtt subscribe 
   client.loop();
@@ -259,9 +293,13 @@ void loop() {
 
     client.publish(id_topic, buffer_ff,0);
   } else if(prot_mode == '2'){
+    
     Serial.println("Protocol: CoAP");
-    //coap.sendResponse(ip, port, packet.messageid, buffer_ff);
+    if(obs){
+        coap.sendResponse(IP, PORT, pc.messageid, buffer_ff);
+    }
     coap.loop();
+    
   } else{
     Serial.println("Invalid Protocol Value: Digit 1 for MQTT or 2 for CoAP");
   }
