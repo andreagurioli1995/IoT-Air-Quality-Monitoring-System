@@ -85,9 +85,9 @@ function forward(data) {
         console.log('Error, no sensors connected.')
     }
 
-    client.publish("sensor/1175/freq", data.sampleFrequency.toString())
-    client.publish("sensor/1175/ming", data.minGas.toString())
-    client.publish("sensor/1175/maxg", data.maxGas.toString())
+    client.publish("sensor/1175/freq", data.sampleFrequency.toString(), {QoS : 1})
+    client.publish("sensor/1175/ming", data.minGas.toString(), {QoS : 1})
+    client.publish("sensor/1175/maxg", data.maxGas.toString(), {QoS : 1})
 }
 
 module.exports = {
