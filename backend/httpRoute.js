@@ -41,14 +41,18 @@ updateSetup = (request, response) => {
 
 getIDs = (request, response) => {
   jsonIDs = {id: idValues}
-
+  response.json(jsonIDs)
 }
 
 // utils functions to update the current id
 addId = (id) =>{
-
+  if(!idValues.includes(id)){
+    idValues.push(id)
+  }
 }
 
 module.exports = {
   updateSetup,
+  addId,
+  getIDs,
 }

@@ -1,5 +1,5 @@
 const mqtt = require('mqtt')
-
+const  http = require('./httpRoute')
 // ----- MQTT setup -----
 const hostMqtt = '130.136.2.70' // Broker Mosquitto
 const portMqtt = '1883' // listen port for MQTT
@@ -63,6 +63,9 @@ function init() {
         }
         if (supported) {
             data = JSON.parse(payload.toString()) // stringify is used for different encoding string
+            if(data['id'] != undefined && data['id'] != null){
+                http.addId(data['id'])
+            }
             // checks
             for (var key in data) {
                 if (data.hasOwnProperty(key)) {

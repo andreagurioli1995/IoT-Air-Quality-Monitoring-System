@@ -44,11 +44,13 @@ app.use(express.static(__dirname + "/public", {
 app.get("/", (request, response)=>{
   response.sendFile(path.join(__dirname, '../frontend/dashboard.html'));
 })
+// Retrieve connected sensors ids
+app.get('/getIDs', httpRoute.getIDs)
 
 // update data for sensor via http protocol
 app.post('/update-setup', httpRoute.updateSetup)
 
-app.post('/getIDs', httpRoute.getIDs )
+
 
 // listening on http
 http.createServer(app).listen(portHttp, ()=>{
