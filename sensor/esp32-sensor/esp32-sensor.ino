@@ -63,6 +63,7 @@ Coap coap(udp);
 const char *topic_receive_freq = "sensor/1175/freq";
 const char *topic_receive_mingas = "sensor/1175/ming";
 const char *topic_receive_maxgas = "sensor/1175/maxg";
+const char *topic_receive_setup = "sensor/1175/setup";
 
 // sensor variables
 const char *data_topic = "sensor/1175/data";
@@ -132,6 +133,7 @@ void mqtt_connection(){
          client.subscribe(topic_receive_freq);
          client.subscribe(topic_receive_mingas);
          client.subscribe(topic_receive_maxgas);
+         client.subscribe(topic_receive_setup);
          
      } else {
          // connection error handler
@@ -167,6 +169,24 @@ void callback(char *topic, byte *payload, unsigned int length) {
  Serial.print("Message arrived on topic: ");
  Serial.println(topic);
  char bufferfreq[length];
+
+
+ if(!strcmp(topic,topic_receive_setup)){
+   StaticJsonDocument<200> setupJ;
+   for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+      }
+    
+    DeserializationError err = deserializeJson(setupJ, bufferfreq);
+    const char* tempId = setupJ["id"];
+    if(!err&&!strcmp(tempId,id)){
+    
+      SAMPLE_FREQUENCY = setupJ["freq"];
+      MIN_GAS_VALUE = setupJ["ming"];   
+      MAX_GAS_VALUE = setupJ["maxg"]; 
+    }
+ }
+ 
  
  // updating the sample_frequency value
  if(!strcmp(topic,topic_receive_freq)){
