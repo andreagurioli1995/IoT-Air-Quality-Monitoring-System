@@ -48,6 +48,7 @@ app.get("/", (request, response)=>{
 // update data for sensor via http protocol
 app.post('/update-setup', httpRoute.updateSetup)
 
+app.post('/getIDs', httpRoute.getIDs )
 
 // listening on http
 http.createServer(app).listen(portHttp, ()=>{

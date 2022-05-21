@@ -1,6 +1,7 @@
 const path = require('path')
 const mqtt = require('./mqttSetup')
 const { body } = require('express-validator');
+var idValues = []
 
 updateSetup = (request, response) => {
   console.log('HTTP: Update data received...')
@@ -34,6 +35,17 @@ updateSetup = (request, response) => {
     mqtt.forward(data) // forward on MQTT channels
   }
   response.redirect("/")
+
+}
+
+
+getIDs = (request, response) => {
+  jsonIDs = {id: idValues}
+
+}
+
+// utils functions to update the current id
+addId = (id) =>{
 
 }
 

@@ -38,7 +38,7 @@ class InfluxManager {
                 const o = tableMeta.toObject(row)
                 console.log(`${o._time} ${o._measurement}: ${o._field}=${o._value}`)
             },
-            error(error) {
+            error(e) {
                 console.log('InfluxDB Error: ' + e)
             },
             complete() {
@@ -48,19 +48,27 @@ class InfluxManager {
     }
 }
 
-function main() {
-    // metadata from the InfluxDB configuration
-    const token = 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ=='
-    const org = 'iot-org'
-    const host = 'localhost'
-    const port = 8086
-    const buckets = {
+const InfluxData = {
+    token : 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
+    host : 'iot-org',
+    org : 'localhost',
+    port : 8086,
+    buckets : {
         temp: 'temperature',
         aqi: 'aqi',
         hum: 'humidity',
         rss: 'rss',
         gas: 'gas',
-    }
+    },
+}
+
+function main() {
+    // metadata from the InfluxDB configuration
+    const token = InfluxData.token
+    const org = InfluxData.org
+    const host = InfluxData.host
+    const port = InfluxData.port
+    const buckets = InfluxData.buckets
 
     const clientId = 'EM01' // temporal, we need to take it from the proxy server
 
@@ -94,10 +102,11 @@ function main() {
     console.log('InfluxDB: Ending main...')
 }
 
-main()
+// main()
 
 module.exports = {
     InfluxManager,
+    InfluxData,
 }
 
 

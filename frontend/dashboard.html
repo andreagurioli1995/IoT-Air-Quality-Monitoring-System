@@ -208,8 +208,9 @@
                 <div class="nav_list"> <a href="#" class="nav_link active"> <i class='bx bx-grid-alt nav_icon'></i>
                         <span class="nav_name">Dashboard</span> </a>
                     <a href="#" class="nav_link"> <i class='bx bx-bar-chart-alt-2 nav_icon'></i> <span
-                            class="nav_name">Stats</span> </a> </div>
-            </div> 
+                            class="nav_name">Stats</span> </a>
+                </div>
+            </div>
         </nav>
     </div>
     <!--Container Main start-->
@@ -217,45 +218,73 @@
         <br>
         <h4>Sensor Setup</h4>
         <br>
+
+        <!-- Form for the setup on a sensor -->
         <form action="update-setup" method="post">
             <div class="form-row align-items-center">
                 <div class="col-sm-3">
+                    <label class="sr-only" for="inlineFormInputGroup">Sensor ID:</label>
+                    <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="inlineFormInputGroup" name="id"
+                            placeholder="Sensor ID" required>
+                    </div>
+                </div>
+                <div class="col-sm-3">
                     <label class="sr-only" for="inlineFormInputGroup">Min. Gas Value</label>
                     <div class="input-group mb-2">
-                      <input type="number" class="form-control" id="inlineFormInputGroup" name="minGas" placeholder="Min. Gas Value">
-                      <div class="input-group-prepend">
-                        <div class="input-group-text">ppfd</div>
-                      </div>
+                        <input type="number" class="form-control" id="inlineFormInputGroup" name="minGas"
+                            placeholder="Min. Gas Value">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">ppfd</div>
+                        </div>
                     </div>
-                  </div>
-                  <div class="col-sm-3">
+                </div>
+                <div class="col-sm-3">
                     <label class="sr-only" for="inlineFormInputGroup">Max. Gas. Value</label>
                     <div class="input-group mb-2">
-                      <input type="number" class="form-control" id="inlineFormInputGroup" name="maxGas"placeholder="Max. Gas. Value">
-                      <div class="input-group-prepend">
-                        <div class="input-group-text">ppfd</div>
-                      </div>
+                        <input type="number" class="form-control" id="inlineFormInputGroup" name="maxGas"
+                            placeholder="Max. Gas. Value">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">ppfd</div>
+                        </div>
                     </div>
-                  </div>
-              <div class="col-sm-3">
-                <label class="sr-only" for="inlineFormInputGroup">Sample Frequency</label>
-                <div class="input-group mb-2">
-                  <input type="number" class="form-control" id="inlineFormInputGroup" name="sampleFrequency" placeholder="Sample Frequency">
-                  <div class="input-group-prepend">
-                    <div class="input-group-text">sec</div>
-                  </div>
                 </div>
-              </div>
-              <div class="col-sm-3">
-                <button type="submit" class="btn btn-danger mb-2">Send Setup</button>
-              </div>
+                <div class="col-sm-3">
+                    <label class="sr-only" for="inlineFormInputGroup">Sample Frequency</label>
+                    <div class="input-group mb-2">
+                        <input type="number" class="form-control" id="inlineFormInputGroup" name="sampleFrequency"
+                            placeholder="Sample Frequency">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">sec</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-3">
+                    <button type="submit" class="btn btn-danger mb-2">Send Setup</button>
+                </div>
             </div>
-          </form>
+        </form>
+
+        <!-- Table of Sensor ID -->
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Sensor ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">1</th>
+                    <td>Mark</td>
+                </tr>
+            </tbody>
+        </table>
+
     </div>
     <!--Container Main end-->
-    <script type="text/javascrit">
+    <script type="text/javascript">
             document.addEventListener("DOMContentLoaded", function(event) {
-   
                 const showNavbar = (toggleId, navId, bodyId, headerId) =>{
                 const toggle = document.getElementById(toggleId),
                 nav = document.getElementById(navId),

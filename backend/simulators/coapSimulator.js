@@ -15,8 +15,7 @@ class CoapSimulator{
           })
         const payload = {
             clientId: '138713571',
-            AQI: 1,
-            gas: 300,
+            gasv:{ gas : 300, AQI: 1},
             temp: 32.20,
             hum: 40.20,
             rss: -60,
