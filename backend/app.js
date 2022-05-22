@@ -3,10 +3,29 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const path = require('path');
 const protocols = require('./protocols')
+const os = require('os')
 // init MQTT
 protocols.init()
 
+
+const netInterface = os.networkInterfaces();
+var resultsNet = {}
+
+// filtering nets on the interface of the host system
+for (const name of Object.keys(netInterface)) {
+    for (const net of netInterface[name]) {
+        // If the IP is IPv4 type and it is not equal to localhost
+        if (net.family === 'IPv4' && !net.internal) {
+            if (!resultsNet[name]) {
+                resultsNet[name] = [];
+            }
+            resultsNet[name].push(net.address);
+        }
+    }
+}
+  
 // ----- HTTP setup -----
+const hostHttp = resultsNet[Object.keys(resultsNet)[0]][0]
 const portHttp = 8080
 const app = express()
 const ws = require('express-ws')(app)
@@ -38,7 +57,7 @@ app.ws('/', function(ws, req) {
   ws.on('message', function(msg) {
     console.log(msg);
   });
-  console.log('socket', req.testing);
+  console.log('Connected');
 });
 
 // Retrieve connected sensors ids
@@ -49,8 +68,8 @@ app.post('/update-setup', protocols.updateSetup)
 
 
 // listening on http
-app.listen(portHttp, ()=>{
-  console.log(`Listening in http on port ${portHttp}.`)
+app.listen(portHttp, hostHttp, ()=>{
+  console.log(`Listening in http on ${hostHttp}:${portHttp}.`)
 })
 
 
