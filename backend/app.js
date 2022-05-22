@@ -1,16 +1,15 @@
 // libraries
 const express = require('express')
-const http = require('http')
 const bodyParser = require('body-parser')
 const path = require('path');
 const protocols = require('./protocols')
-
 // init MQTT
 protocols.init()
 
 // ----- HTTP setup -----
 const portHttp = 8080
 const app = express()
+const ws = require('express-ws')(app)
 
 // bodyParser for POST
 app.use(bodyParser.json())
@@ -33,6 +32,15 @@ app.use(express.static(__dirname + "/public", {
 app.get("/", (request, response)=>{
   response.sendFile(path.join(__dirname, '../frontend/dashboard.html'));
 })
+
+// default API on WebSocket wrapper
+app.ws('/', function(ws, req) {
+  ws.on('message', function(msg) {
+    console.log(msg);
+  });
+  console.log('socket', req.testing);
+});
+
 // Retrieve connected sensors ids
 app.get('/getIDs', protocols.getIDs)
 
@@ -41,7 +49,7 @@ app.post('/update-setup', protocols.updateSetup)
 
 
 // listening on http
-http.createServer(app).listen(portHttp, ()=>{
+app.listen(portHttp, ()=>{
   console.log(`Listening in http on port ${portHttp}.`)
 })
 

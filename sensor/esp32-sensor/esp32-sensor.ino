@@ -5,16 +5,17 @@
 #include <PubSubClient.h>
 #include <String.h>
 #include <ArduinoJson.h>
-
+#include <WebSocketsClient.h>
+ 
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
 
 const float lat = 44.497;
 const float lng = 11.353;
-const char *id = "EM01";
-
+String id;
 const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
+
 
 /*
 // coap observing variable
@@ -26,7 +27,10 @@ int PORT = NULL;
 WiFiUDP udp;
 Coap coap(udp);
 */
-
+// WS Setup
+WebSocketsClient webSocket;
+bool connected = false;
+unsigned long lastUpdate = millis();
 // setting metadata
 int SAMPLE_FREQUENCY = 2000;
 int MIN_GAS_VALUE = 4095;
@@ -53,10 +57,14 @@ char temp;
 const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
 const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
+
+// Proxy Data
+String WSIp = "188.153.77.35"; // check it on https://www.whatismyip.com/it/
+
+
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
 const char *topic = "sensor/1175/";
-
 
 
 // setup variables
@@ -116,14 +124,69 @@ void coap_connection(){
   
 }
 */
-void mqtt_connection(){
+
+// Functions 
+
+
+// hexdump function for WS address
+void hexdump(const void *mem, uint32_t len, uint8_t cols = 16) {
+    const uint8_t* src = (const uint8_t*) mem;
+    Serial.printf("\n[HEXDUMP] Address: 0x%08X len: 0x%X (%d)", (ptrdiff_t)src, len, len);
+    for(uint32_t i = 0; i < len; i++) {
+        if(i % cols == 0) {
+            Serial.printf("\n[0x%08X] 0x%08X: ", (ptrdiff_t)src, i);
+        }
+        Serial.printf("%02X ", *src);
+        src++;
+    }
+    Serial.printf("\n");
+}
+// Web Socket Event Handler for HTTP connection
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+    switch(type) { // event dispatching on the WS state
+        case WStype_DISCONNECTED:
+            Serial.printf("HTTP WebSocket: Disconnected!\n");
+            connected = false;
+            break;
+        case WStype_CONNECTED: {
+            Serial.printf("HTTP WebSocket: Connected to url: %s\n", payload);
+            connected = true;
+ 
+            // send message to server when Connected
+            Serial.println("HTTP WebSocket: Connected");
+            webSocket.sendTXT("Connected");
+        }
+            break;
+        case WStype_TEXT:
+            // text message
+            Serial.printf("HTTP WebSocket: RESPONSE: %s\n", payload);
+            break;
+        case WStype_BIN:
+            // binary message 
+            Serial.printf("HTTP WebSocket: get binary length: %u\n", length);
+            hexdump(payload, length);
+            break;
+        case WStype_PING:
+            // pong will be send automatically
+            Serial.printf("HTTP WebSocket: get ping\n");
+            break;
+        case WStype_PONG:
+            // answer to a ping we send
+            Serial.printf("HTTP WebSocket: get pong\n");
+            break;
+        default:
+            Serial.println("HTTP WebSocket: unsupported event\n");
+    }
+ 
+}
+
+// MQTT Connection making with setup of topics 
+void MQTTConnection(){
   client.setServer(mqtt_broker, mqtt_port);
   client.setCallback(callback); // setup the callback for the client connection (MQTT) 
   while (!client.connected()) {
-     String client_id = "esp32-client-";
-     client_id += String(WiFi.macAddress());
-     Serial.printf("The client %s connects to the public mqtt broker\n", client_id.c_str());
-     if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+     Serial.printf("The client %s connects to the public mqtt broker\n", id.c_str());
+     if (client.connect(id.c_str(), mqtt_username, mqtt_password)) {
          Serial.println("Public emqx mqtt broker connected");
          client.subscribe(topic_receive_setup);
          
@@ -136,11 +199,20 @@ void mqtt_connection(){
     }
 }
 
+void HTTPConnection(){
+  // server address, port and URL
+  Serial.println((String)"Connection to " + "ws://" + (String)WSIp + ":8080/");
+  webSocket.begin(WSIp, 8080, "/");
+ 
+    // event handler
+    webSocket.onEvent(webSocketEvent);
+}
 void setup() { 
   pinMode(SMOKE, INPUT);
   Serial.begin(19200); 
   dht_sensor.begin(); 
   // connecting to a WiFi network
+  WiFi.mode(WIFI_STA); // station mode
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi..");
   while (WiFi.status() != WL_CONNECTED) {
@@ -151,10 +223,14 @@ void setup() {
   Serial.println("Connected to the WiFi network");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+  byte MAC[6];
+  WiFi.macAddress(MAC);
+  id =  String(MAC[0],HEX) +String(MAC[1],HEX) +String(MAC[2],HEX) +String(MAC[3],HEX) + String(MAC[4],HEX) + String(MAC[5],HEX);
   RSS = WiFi.RSSI(); //checking the signal strength
   // setup mqtt and coap
-  mqtt_connection();
-  // coap_connection();
+  MQTTConnection();
+  HTTPConnection();
+  lastUpdate = millis();
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -171,7 +247,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
     
     DeserializationError err = deserializeJson(setupJ, bufferfreq);
     const char* tempId = setupJ["id"];
-    if(!err&&!strcmp(tempId,id)){
+    if(!err&&!strcmp(tempId,id.c_str())){
   
       int sampleFrequency = setupJ["sampleFrequency"];
       int minGas = setupJ["minGas"];
@@ -180,7 +256,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
       // check missing data
       if(sampleFrequency != -1){
         Serial.print("Setup SAMPLE_FREQUENCY at:");
-        Serial.println(maxGas);
+        Serial.println(sampleFrequency);
          SAMPLE_FREQUENCY = sampleFrequency;
       }
 
@@ -215,11 +291,31 @@ void loop() {
   // loop for mqtt subscribe 
   client.loop();
   
+  // loop for web socket client
+  webSocket.loop();
+
+  // possible reconnection
+   if(WiFi.status() != WL_CONNECTED){
+      WiFi.reconnect();
+      while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+      }
+      Serial.println("WiFi reconnect");
+    }
+    
+  // RSS update
   RSS = WiFi.RSSI();
+
+  // Data printing 
   Serial.println("--------- Data -----------");
   Serial.print("WiFi RSS Strength: ");
   Serial.println(RSS);
+
+  // counting temporal loops
   loops++;
+
+  // checking new input from the Serial
   temp = Serial.read();
   if(temp=='1'|| temp=='2' || temp=='3'){
     prot_mode=temp;
@@ -232,33 +328,39 @@ void loop() {
   for(int c=3; c>=0; c--){
     gas_values[c+1] = gas_values[c];
   }
+
+  // retrieves and save gas values temporally for 5 loops
   gas_values[0] = gas;
   int sum = 0;
    for(int c=0; c<5; c++){
     sum+=gas_values[c];
   }
+
+  // time to do mean
   if(loops<=5){
     avg_gas = sum/loops;
-  }else{
+  }  else{
     avg_gas = sum/5;
   }
 
   // defining value of AQI based on the average value
   if(avg_gas <= MAX_GAS_VALUE){
     AQI=0;
-  }else if(MIN_GAS_VALUE >= avg_gas > MAX_GAS_VALUE){
+  } else if(MIN_GAS_VALUE >= avg_gas > MAX_GAS_VALUE){
     AQI=1;
-  }else{
+  } else {
     AQI=2;
   }
+
+  // printing AQI
   Serial.print("AQI:");
   Serial.println(AQI);
-  
+
+  // read DHT22 sensors
   float humidity = dht_sensor.readHumidity(); 
   float temperature = dht_sensor.readTemperature(); 
 
   // print of the sensor values
-
   Serial.print("Gas sensor: ");
   Serial.println(gas); 
   Serial.print("Temperature in Celsius: ");
@@ -266,7 +368,7 @@ void loop() {
   Serial.print("Humidity value: " );
   Serial.println(humidity);
 
-  // creating the json file
+  // Creating the json file for sending values
   doc["id"] = id;
   doc["gps"]["lat"] = lat;
   doc["gps"]["lng"] = lng;
@@ -277,31 +379,34 @@ void loop() {
   doc["gasv"]["AQI"] = AQI;
 
 
-  // preparing buffers for string conversation
+  // preparing buffers for String conversation
   char buffer_ff[sizeof(doc)];
   serializeJson(doc, buffer_ff);
- // ----------------------------------------------------
-  
-  
+
+  // verify protocol mode and execute the sending
   if (prot_mode == '1'){
     Serial.println("Protocol: MQTT");
     // mqtt publish
 
     client.publish(data_topic, buffer_ff,0);
   } else if(prot_mode == '2'){
-    /*
-    Serial.println("Protocol: CoAP");
-    if(obs){
-        coap.sendResponse(IP, PORT, pc.messageid, buffer_ff);
+    Serial.println("Protocol: HTTP");
+    
+    if (connected && lastUpdate + SAMPLE_FREQUENCY < millis()){
+        Serial.println("HTTP WebSocket: Sending message...");
+        webSocket.sendTXT("Hello World");
+        lastUpdate = millis();
     }
-    coap.loop();
-    */
-    // To-DO: HTTP protocol support
+    
   } else{
+    // no valid protocol, we can't do nothing until the sensor administrator does not digit a correct mode
     Serial.println("Invalid Protocol Value: Digit 1 for MQTT or 2 for CoAP");
   }
   
   Serial.println("--------------------------");
+  // customized delay based on the runtime setup
   delay(SAMPLE_FREQUENCY); 
+
+  // loop the wifi client
   client.loop();
 }
