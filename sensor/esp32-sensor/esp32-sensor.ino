@@ -2,11 +2,9 @@
 #include<SPI.h> 
 #include <DHT.h> 
 #include <WiFi.h>
-#include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include <String.h>
 #include <ArduinoJson.h>
-#include <coap-simple.h>
 
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
@@ -18,12 +16,16 @@ const char *id = "EM01";
 const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
 
+/*
 // coap observing variable
 bool obs = false;
 IPAddress IP;
 CoapPacket pc;
 int PORT = NULL;
-
+//coap instantiation
+WiFiUDP udp;
+Coap coap(udp);
+*/
 
 // setting metadata
 int SAMPLE_FREQUENCY = 2000;
@@ -46,38 +48,31 @@ char prot_mode = '1';
 char temp;
 
 // WiFi Data
-const char *ssid = "iPhone"; // Warning: enter your WiFi name
-const char *password = "19951995";  // Warning: enter WiFi password
-//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+// const char *ssid = "iPhone"; // Warning: enter your WiFi name
+// const char *password = "19951995";  // Warning: enter WiFi password
+const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
 const char *topic = "sensor/1175/";
 
-//coap instantiation
-WiFiUDP udp;
-Coap coap(udp);
+
 
 // setup variables
-const char *topic_receive_freq = "sensor/1175/freq";
-const char *topic_receive_mingas = "sensor/1175/ming";
-const char *topic_receive_maxgas = "sensor/1175/maxg";
 const char *topic_receive_setup = "sensor/1175/setup";
 
 // sensor variables
 const char *data_topic = "sensor/1175/data";
-const char *id_topic = "sensor/1175/id";
 
 // mqtt variables
 const char *mqtt_username = "iot2020";
 const char *mqtt_password = "mqtt2020*";
 const int mqtt_port = 1883;
 
-// CoAP protocol
 // deployed proxy server on Heroku
-String http_hostname = "proxy-iot-quality-air.herokuapp.com";
-// String http_hostname = "localhost"
+// String http_hostname = "proxy-iot-quality-air.herokuapp.com";
+String http_hostname = "localhost";
 
 
 // WiFi client declaration for Mqtt
@@ -88,7 +83,7 @@ PubSubClient client(mqttClient);
 
 // DHT22 sensor with setup on pin
 DHT dht_sensor(DHTPIN,DHT22); 
-
+/*
 // CoAP server endpoint URL
 void callback_data(CoapPacket &packet, IPAddress ip, int port) {
   
@@ -120,7 +115,7 @@ void coap_connection(){
   coap.start();
   
 }
-
+*/
 void mqtt_connection(){
   client.setServer(mqtt_broker, mqtt_port);
   client.setCallback(callback); // setup the callback for the client connection (MQTT) 
@@ -130,9 +125,6 @@ void mqtt_connection(){
      Serial.printf("The client %s connects to the public mqtt broker\n", client_id.c_str());
      if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
          Serial.println("Public emqx mqtt broker connected");
-         client.subscribe(topic_receive_freq);
-         client.subscribe(topic_receive_mingas);
-         client.subscribe(topic_receive_maxgas);
          client.subscribe(topic_receive_setup);
          
      } else {
@@ -162,7 +154,7 @@ void setup() {
   RSS = WiFi.RSSI(); //checking the signal strength
   // setup mqtt and coap
   mqtt_connection();
-  coap_connection();
+  // coap_connection();
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -180,40 +172,33 @@ void callback(char *topic, byte *payload, unsigned int length) {
     DeserializationError err = deserializeJson(setupJ, bufferfreq);
     const char* tempId = setupJ["id"];
     if(!err&&!strcmp(tempId,id)){
-    
-      SAMPLE_FREQUENCY = setupJ["freq"];
-      MIN_GAS_VALUE = setupJ["ming"];   
-      MAX_GAS_VALUE = setupJ["maxg"]; 
+  
+      int sampleFrequency = setupJ["sampleFrequency"];
+      int minGas = setupJ["minGas"];
+      int maxGas = setupJ["maxGas"];
+
+      // check missing data
+      if(sampleFrequency != -1){
+        Serial.print("Setup SAMPLE_FREQUENCY at:");
+        Serial.println(maxGas);
+         SAMPLE_FREQUENCY = sampleFrequency;
+      }
+
+      if(minGas != -1){
+        Serial.print("Setup MIN_GAS_VALUE at:");
+        Serial.println(maxGas);
+        MIN_GAS_VALUE = minGas;   
+      }
+
+      if(maxGas != -1){
+        Serial.print("Setup MAX_GAS_VALUE at:");
+        Serial.println(maxGas);
+        MAX_GAS_VALUE = maxGas; 
+      }
+  
     }
  }
  
- 
- // updating the sample_frequency value
- if(!strcmp(topic,topic_receive_freq)){
-   for (int i = 0; i < length; i++) {
-     bufferfreq[i]=(char) payload[i];
-      }
-    SAMPLE_FREQUENCY = atoi(bufferfreq);  
-
- }
-
- // updating the min_gas_value
-  if(!strcmp(topic,topic_receive_mingas)){
-   for (int i = 0; i < length; i++) {
-     bufferfreq[i]=(char) payload[i];
-      }
-     MIN_GAS_VALUE = atoi(bufferfreq);  
-
- }
-
- // updating the max_gas_value
-   if(!strcmp(topic,topic_receive_maxgas)){
-   for (int i = 0; i < length; i++) {
-     bufferfreq[i]=(char) payload[i];
-      }
-     MAX_GAS_VALUE = atoi(bufferfreq);  
-
- }
 
  // printing of the message received 
  Serial.print("Message Metadata Received from the Sensor:");
@@ -302,15 +287,16 @@ void loop() {
     Serial.println("Protocol: MQTT");
     // mqtt publish
 
-    client.publish(id_topic, buffer_ff,0);
+    client.publish(data_topic, buffer_ff,0);
   } else if(prot_mode == '2'){
-    
+    /*
     Serial.println("Protocol: CoAP");
     if(obs){
         coap.sendResponse(IP, PORT, pc.messageid, buffer_ff);
     }
     coap.loop();
-    
+    */
+    // To-DO: HTTP protocol support
   } else{
     Serial.println("Invalid Protocol Value: Digit 1 for MQTT or 2 for CoAP");
   }
