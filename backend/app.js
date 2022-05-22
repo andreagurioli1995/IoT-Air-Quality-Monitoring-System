@@ -1,23 +1,12 @@
-// MQTT library
-const mqtt = require('./mqttSetup')
-
-// HTTP libraries
+// libraries
 const express = require('express')
 const http = require('http')
 const bodyParser = require('body-parser')
 const path = require('path');
-const httpRoute = require('./httpRoute')
-
-
-// CoAP libraries
-const coap = require('coap')
-const coapRoute = require('./coapRoute')
+const protocols = require('./protocols')
 
 // init MQTT
-mqtt.init()
-
-// ----- CoAP setup -----
-
+protocols.init()
 
 // ----- HTTP setup -----
 const portHttp = 8080
@@ -45,11 +34,10 @@ app.get("/", (request, response)=>{
   response.sendFile(path.join(__dirname, '../frontend/dashboard.html'));
 })
 // Retrieve connected sensors ids
-app.get('/getIDs', httpRoute.getIDs)
+app.get('/getIDs', protocols.getIDs)
 
 // update data for sensor via http protocol
-app.post('/update-setup', httpRoute.updateSetup)
-
+app.post('/update-setup', protocols.updateSetup)
 
 
 // listening on http
