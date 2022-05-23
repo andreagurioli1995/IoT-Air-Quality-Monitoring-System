@@ -6,6 +6,9 @@
 #include <String.h>
 #include <ArduinoJson.h>
 #include "Thing.CoAP.h"
+#include "TimeLib.h"
+#include <Time.h>
+
  
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
@@ -18,12 +21,13 @@ StaticJsonDocument<capacity> doc;
 
 
 
+
 //Declare our CoAP client and the packet handler
 Thing::CoAP::Client coapClient;
 Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 
 // setting metadata
-int SAMPLE_FREQUENCY = 2000;
+long int SAMPLE_FREQUENCY = 2000;
 int MIN_GAS_VALUE = 4095;
 int MAX_GAS_VALUE = 500;
 
@@ -38,15 +42,23 @@ float avg_gas;
 //counter for gas mean purposes
 int loops = 0;
 
+
+//variables for time computation
+unsigned long previousTime;
+double sumTime=0;
+double avg;
+int timeCounter=0;
+
 // Protocol switching variables
 char prot_mode = '1';
+char previous_prot = '1';
 char temp;
 
 // WiFi Data
-// const char *ssid = "iPhone"; // Warning: enter your WiFi name
-// const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+ const char *ssid = "iPhone"; // Warning: enter your WiFi name
+ const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
@@ -60,6 +72,9 @@ const char *topic = "sensor/1175/";
 
 // setup variables
 const char *topic_receive_setup = "sensor/1175/setup";
+
+// ping for time delay computation
+const char *topic_receive_ping = "sensor/1175/time";
 
 // sensor variables
 const char *data_topic = "sensor/1175/data";
@@ -90,6 +105,17 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  Serial.println(topic);
  char bufferfreq[length];
 
+  if(!strcmp(topic,topic_receive_ping)){
+     timeCounter+=1;
+     unsigned long overall_time = previousTime-millis();
+     Serial.println("-------overall time--------");
+     Serial.println(overall_time);
+     sumTime+=overall_time;
+     Serial.println("--------average time in ms--------");
+     avg=sumTime/timeCounter;
+     Serial.println(avg);
+  }
+
 
  if(!strcmp(topic,topic_receive_setup)){
    StaticJsonDocument<200> setupJ;
@@ -101,10 +127,11 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
     const char* tempId = setupJ["id"];
     if(!err&&!strcmp(tempId,id.c_str())){
   
-      int sampleFrequency = setupJ["sampleFrequency"];
+      long int sampleFrequency = setupJ["sampleFrequency"];
       int minGas = setupJ["minGas"];
       int maxGas = setupJ["maxGas"];
-
+      
+      Serial.print(sampleFrequency);
       // check missing data
       if(sampleFrequency != -1){
         Serial.print("Setup SAMPLE_FREQUENCY at:");
@@ -148,6 +175,8 @@ void MQTTSetup(){
      if (client.connect(id.c_str(), mqtt_username, mqtt_password)) {
          Serial.println("Public emqx mqtt broker connected");
          client.subscribe(topic_receive_setup);
+         //ping subscribe for protocol evaluation
+         client.subscribe(topic_receive_ping);
          
      } else {
          // connection error handler
@@ -308,11 +337,18 @@ void loop() {
 
   // verify protocol mode and execute the sending
   if (prot_mode == '1'){
+    if(previous_prot!='1') timeCounter=0;
     Serial.println("Protocol: MQTT");
     // mqtt publish
 
     client.publish(data_topic, buffer_ff,0);
+    //ping testing on different QoS
+    previousTime=millis();
+    client.publish(topic_receive_ping, buffer_ff,0);
+    //client.publish(topic_receive_ping, buffer_ff,1);
+    //client.publish(topic_receive_ping, buffer_ff,2);
   } else if(prot_mode == '2'){
+    if(previous_prot!='2') timeCounter=0;
     Serial.println("Protocol: CoAP");
     // To-DO: Use Thing.CoAP
     sendMessage(buffer_ff);
