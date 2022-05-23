@@ -1,5 +1,5 @@
 const mqtt = require('mqtt')
-const InfluxManager = require('../influxdb/influxManager')
+const influx = require('../influxdb/InfluxManager')
 
 // Server session variables
 var idValues = []
@@ -7,7 +7,7 @@ var idValues = []
 // ----- MQTT setup -----
 const hostMqtt = '130.136.2.70' // Broker Mosquitto
 const portMqtt = '1883' // listen port for MQTT
-const clientId = `mqtt_${Math.random().toString(16).slice(3)}` // subscriber id
+const clientId = `proxy_${Math.random().toString(16).slice(3)}` // subscriber id
 const connectUrl = `mqtt://${hostMqtt}:${portMqtt}` // url for connection
 
 // connection on Mosquitto broker
@@ -18,8 +18,8 @@ const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
 // Influx Data
 const InfluxData = {
   token: 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
-  host: 'iot-org',
-  org: 'localhost',
+  host: 'localhost',
+  org: 'iot-org',
   port: 8086,
   buckets: {
     temp: 'temperature',
@@ -30,8 +30,6 @@ const InfluxData = {
   },
 }
 
-
-// ---------- Functions for CoAP -----------
 
 // ---------- Functions for MQTT -----------
 
@@ -159,7 +157,7 @@ updateSetup = (request, response) => {
 
 // ------ Common MQTT and CoAP functions --------
 
-function processJSON(data, protocol){
+function processJSON(data, protocol) {
 
   if (data['id'] != undefined && data['id'] != null) {
     addId(data['id'])
@@ -177,9 +175,30 @@ function processJSON(data, protocol){
     }
   }
 
+  // Write on InfluxDB
+  const influxId = data['id']
+  console.log(data)
+  const influxManager = new influx.InfluxManager(InfluxData.host, InfluxData.port, InfluxData.token, InfluxData.org)
+  for (const [key, value] of Object.entries(InfluxData.buckets)) {
+    console.log(value + "->")
+    switch(value){
+      case "temperature": influxManager.writeApi(influxId, value, data['temp'])
+      break;
+      case "humidity": influxManager.writeApi(influxId, value, data['hum'])
+      break;
+      case "gas": influxManager.writeApi(influxId, value, data['gasv']['gas'])
+      break;
+      case "aqi": influxManager.writeApi(influxId, value, data['gasv']['AQI'])
+      break;
+      case "rss": influxManager.writeApi(influxId, value, data['rss'])
+      break;
+      default:
+        break;
+    }
+  }
+
   console.log('---------------------')
-  // To-Do: Save it on InfluxDB using the InfluxManager
-  // const influxManager = new InfluxManager(InfluxData.host, InfluxData.port, InfluxData.token, InfluxData.org)
+
 }
 
 // --------- Utils ----------

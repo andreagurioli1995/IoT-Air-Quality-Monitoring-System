@@ -13,9 +13,12 @@ class InfluxManager {
     writeApi(clientId, bucket, value) {
         const writeApi = this.client.getWriteApi(this.org, bucket)
         writeApi.useDefaultTags({ host: clientId.toString() })
-
+        console.log('Writing on bucket:' + bucket)
         var point = new Point('val')
-        if (bucket == "aqi") {
+        if(bucket == undefined || value == null){
+            return false;
+        }
+        if (bucket == "aqi" ) {
             point = point.intField('value', value)
         } else {
             point = point.floatField('value', value)
@@ -29,6 +32,7 @@ class InfluxManager {
             .catch(e => {
                 console.log('InfluxDB Error: ' + e)
             })
+        return true
     }
 
     queryApi(query) {
@@ -102,13 +106,12 @@ function main() {
     console.log('InfluxDB: Ending main...')
 }
 
-main()
+// main()
 
 module.exports = {
     InfluxManager,
     InfluxData,
 }
-
 
 
 
