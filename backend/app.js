@@ -42,7 +42,10 @@ const coapPort = 5683
 
   dispatching = req.url.split('/')[1]
   if(dispatching == 'data'){
-    console.log(JSON.parse(req.payload.toString()))
+    protocols.processJSON(JSON.parse(req.payload.toString()), 'CoAP');
+    res.end('200')
+  } else {
+    // not supported URI
     res.end('200')
   }
 })
