@@ -59,7 +59,7 @@ const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
-String WSIp = "188.153.77.35"; // check it on https://www.whatismyip.com/it/
+String ProxyIp = "188.153.77.35"; // check it on https://www.whatismyip.com/it/
 
 
 // MQTT Broker
@@ -78,10 +78,6 @@ const char *mqtt_username = "iot2020";
 const char *mqtt_password = "mqtt2020*";
 const int mqtt_port = 1883;
 
-// deployed proxy server on Heroku
-// String http_hostname = "proxy-iot-quality-air.herokuapp.com";
-String http_hostname = "localhost";
-
 
 // WiFi client declaration for Mqtt
 WiFiClient mqttClient;
@@ -91,149 +87,14 @@ PubSubClient client(mqttClient);
 
 // DHT22 sensor with setup on pin
 DHT dht_sensor(DHTPIN,DHT22); 
-/*
-// CoAP server endpoint URL
-void callback_data(CoapPacket &packet, IPAddress ip, int port) {
-  
-  // send response
-  char p[packet.payloadlen + 1];
-  memcpy(p, packet.payload, packet.payloadlen);
-  p[packet.payloadlen] = NULL;
-  
-  String message(p);
-  
-  if(message.equals("1")){
-    obs=true;
-    IP=ip;
-    PORT=port;
-    pc= packet;   
-    
-  }else if(message.equals("0")){
-    obs=false;
-  }
 
-  char buffer_ff[sizeof(doc)];
-  serializeJson(doc, buffer_ff);
-  coap.sendResponse(ip, port,packet.messageid, buffer_ff);
-
-}
-
-void coap_connection(){
-  coap.server(callback_data, "data");
-  coap.start();
-  
-}
-*/
 
 // Functions 
 
+// ------------ MQTT Functions --------------
 
-// hexdump function for WS address
-void hexdump(const void *mem, uint32_t len, uint8_t cols = 16) {
-    const uint8_t* src = (const uint8_t*) mem;
-    Serial.printf("\n[HEXDUMP] Address: 0x%08X len: 0x%X (%d)", (ptrdiff_t)src, len, len);
-    for(uint32_t i = 0; i < len; i++) {
-        if(i % cols == 0) {
-            Serial.printf("\n[0x%08X] 0x%08X: ", (ptrdiff_t)src, i);
-        }
-        Serial.printf("%02X ", *src);
-        src++;
-    }
-    Serial.printf("\n");
-}
-// Web Socket Event Handler for HTTP connection
-void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
-    switch(type) { // event dispatching on the WS state
-        case WStype_DISCONNECTED:
-            Serial.printf("HTTP WebSocket: Disconnected!\n");
-            connected = false;
-            break;
-        case WStype_CONNECTED: {
-            Serial.printf("HTTP WebSocket: Connected to url: %s\n", payload);
-            connected = true;
- 
-            // send message to server when Connected
-            Serial.println("HTTP WebSocket: Connected");
-            webSocket.sendTXT("Connected");
-        }
-            break;
-        case WStype_TEXT:
-            // text message
-            Serial.printf("HTTP WebSocket: RESPONSE: %s\n", payload);
-            break;
-        case WStype_BIN:
-            // binary message 
-            Serial.printf("HTTP WebSocket: get binary length: %u\n", length);
-            hexdump(payload, length);
-            break;
-        case WStype_PING:
-            // pong will be send automatically
-            Serial.printf("HTTP WebSocket: get ping\n");
-            break;
-        case WStype_PONG:
-            // answer to a ping we send
-            Serial.printf("HTTP WebSocket: get pong\n");
-            break;
-        default:
-            Serial.println("HTTP WebSocket: unsupported event\n");
-    }
- 
-}
-
-// MQTT Connection making with setup of topics 
-void MQTTConnection(){
-  client.setServer(mqtt_broker, mqtt_port);
-  client.setCallback(callback); // setup the callback for the client connection (MQTT) 
-  while (!client.connected()) {
-     Serial.printf("The client %s connects to the public mqtt broker\n", id.c_str());
-     if (client.connect(id.c_str(), mqtt_username, mqtt_password)) {
-         Serial.println("Public emqx mqtt broker connected");
-         client.subscribe(topic_receive_setup);
-         
-     } else {
-         // connection error handler
-         Serial.print("failed with state ");
-         Serial.print(client.state());
-         delay(2000);
-     }
-    }
-}
-
-void HTTPConnection(){
-  // server address, port and URL
-  Serial.println((String)"Connection to " + "ws://" + (String)WSIp + ":8080/");
-  webSocket.begin(WSIp, 8080, "/");
- 
-    // event handler
-    webSocket.onEvent(webSocketEvent);
-}
-void setup() { 
-  pinMode(SMOKE, INPUT);
-  Serial.begin(19200); 
-  dht_sensor.begin(); 
-  // connecting to a WiFi network
-  WiFi.mode(WIFI_STA); // station mode
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi..");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(5000);
-    Serial.print(".");
-    }
-  Serial.println();
-  Serial.println("Connected to the WiFi network");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-  byte MAC[6];
-  WiFi.macAddress(MAC);
-  id =  String(MAC[0],HEX) +String(MAC[1],HEX) +String(MAC[2],HEX) +String(MAC[3],HEX) + String(MAC[4],HEX) + String(MAC[5],HEX);
-  RSS = WiFi.RSSI(); //checking the signal strength
-  // setup mqtt and coap
-  MQTTConnection();
-  HTTPConnection();
-  lastUpdate = millis();
-}
-
-void callback(char *topic, byte *payload, unsigned int length) {
+// ----------- MQTT Callback -----------
+void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  Serial.print("Message arrived on topic: ");
  Serial.println(topic);
  char bufferfreq[length];
@@ -273,17 +134,68 @@ void callback(char *topic, byte *payload, unsigned int length) {
       }
   
     }
- }
- 
 
- // printing of the message received 
- Serial.print("Message Metadata Received from the Sensor:");
- for (int i = 0; i < length; i++) {
-     Serial.print((char) payload[i]);
+    // printing of the message received 
+    Serial.print("Message Metadata Received from the Sensor:");
+    for (int i = 0; i < length; i++) {
+      Serial.print((char) payload[i]);
+      }
+    Serial.println();
+    Serial.println("-----------------------");
+    }
+   // end if
  }
- Serial.println();
- Serial.println("-----------------------");
+
+
+
+// ------------- MQTT Setup -----------------
+void MQTTSetup(){
+  client.setServer(mqtt_broker, mqtt_port);
+  client.setCallback(callbackMQTT); // setup the callback for the client connection (MQTT) 
+  while (!client.connected()) {
+     Serial.printf("The client %s connects to the public mqtt broker\n", id.c_str());
+     if (client.connect(id.c_str(), mqtt_username, mqtt_password)) {
+         Serial.println("Public emqx mqtt broker connected");
+         client.subscribe(topic_receive_setup);
+         
+     } else {
+         // connection error handler
+         Serial.print("failed with state ");
+         Serial.print(client.state());
+         delay(2000);
+     }
+    }
 }
+
+// ------------ End MQTT Functions --------------
+
+// ------------ Setup -----------------
+void setup() { 
+  pinMode(SMOKE, INPUT);
+  Serial.begin(19200); 
+  dht_sensor.begin(); 
+  // connecting to a WiFi network
+  WiFi.mode(WIFI_STA); // station mode
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi..");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(5000);
+    Serial.print(".");
+    }
+  Serial.println();
+  Serial.println("Connected to the WiFi network");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+  byte MAC[6];
+  WiFi.macAddress(MAC);
+  id =  String(MAC[0],HEX) +String(MAC[1],HEX) +String(MAC[2],HEX) +String(MAC[3],HEX) + String(MAC[4],HEX) + String(MAC[5],HEX);
+  RSS = WiFi.RSSI(); //checking the signal strength
+  // setup mqtt and coap
+  MQTTSetup();
+}
+
+
+
 
 
 void loop() { 
@@ -345,11 +257,11 @@ void loop() {
 
   // defining value of AQI based on the average value
   if(avg_gas <= MAX_GAS_VALUE){
-    AQI=0;
+    AQI = 0;
   } else if(MIN_GAS_VALUE >= avg_gas > MAX_GAS_VALUE){
-    AQI=1;
+    AQI = 1;
   } else {
-    AQI=2;
+    AQI = 2;
   }
 
   // printing AQI
@@ -390,13 +302,8 @@ void loop() {
 
     client.publish(data_topic, buffer_ff,0);
   } else if(prot_mode == '2'){
-    Serial.println("Protocol: HTTP");
-    
-    if (connected && lastUpdate + SAMPLE_FREQUENCY < millis()){
-        Serial.println("HTTP WebSocket: Sending message...");
-        webSocket.sendTXT("Hello World");
-        lastUpdate = millis();
-    }
+    Serial.println("Protocol: CoAP");
+    // To-DO: Use Thing.CoAP
     
   } else{
     // no valid protocol, we can't do nothing until the sensor administrator does not digit a correct mode
