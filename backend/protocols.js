@@ -49,7 +49,7 @@ init = () => {
 
   // mqtt handler
   client.on('connect', () => {
-      console.log(`MQTT: Listening in mqtt on port ${portMqtt}.`)
+      console.log(`Listening in CoAP on ${hostMqtt}:${portMqtt}.`)
       console.log('---------------------')
       console.log('MQTT Subscriptions: ')
       try{
@@ -173,6 +173,8 @@ updateSetup = (request, response) => {
 }
 
 
+
+// --------- Utils ----------
 getIDs = (request, response) => {
   jsonIDs = {id: idValues}
   response.json(jsonIDs)

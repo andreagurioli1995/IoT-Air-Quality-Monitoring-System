@@ -5,7 +5,7 @@
 #include <PubSubClient.h>
 #include <String.h>
 #include <ArduinoJson.h>
-#include <WebSocketsClient.h>
+#include "Thing.CoAP.h"
  
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
@@ -17,20 +17,11 @@ const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
 
 
-/*
-// coap observing variable
-bool obs = false;
-IPAddress IP;
-CoapPacket pc;
-int PORT = NULL;
-//coap instantiation
-WiFiUDP udp;
-Coap coap(udp);
-*/
-// WS Setup
-WebSocketsClient webSocket;
-bool connected = false;
-unsigned long lastUpdate = millis();
+
+//Declare our CoAP client and the packet handler
+Thing::CoAP::Client coapClient;
+Thing::CoAP::ESP::UDPPacketProvider udpProvider;
+
 // setting metadata
 int SAMPLE_FREQUENCY = 2000;
 int MIN_GAS_VALUE = 4095;
@@ -59,8 +50,8 @@ const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
-String ProxyIp = "188.153.77.35"; // check it on https://www.whatismyip.com/it/
-
+// check it on https://www.whatismyip.com/it/
+IPAddress proxyIp(192,168,1,2);
 
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
@@ -136,7 +127,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
     }
 
     // printing of the message received 
-    Serial.print("Message Metadata Received from the Sensor:");
+    Serial.print("MQTT: Message Metadata Received from the Sensor:");
     for (int i = 0; i < length; i++) {
       Serial.print((char) payload[i]);
       }
@@ -169,6 +160,27 @@ void MQTTSetup(){
 
 // ------------ End MQTT Functions --------------
 
+
+// ------------ CoAP Functions ------------
+
+void sendMessage(char* payload){
+  //Make a post
+  Serial.print("CoAP: Sending data. ");
+  coapClient.Get("data", payload, [](Thing::CoAP::Response response){
+      std::vector<uint8_t> payload = response.GetPayload();
+      std::string received(payload.begin(), payload.end());
+      Serial.println("CoAP: Server sent the following message:");
+      Serial.println(received.c_str());
+  });
+}
+
+void CoAPSetup(){
+    coapClient.SetPacketProvider(udpProvider);
+    //Connect CoAP client to a server
+    Serial.println("CoAP: Connecting to CoAP Server");
+    coapClient.Start(proxyIp, 5683);
+}
+
 // ------------ Setup -----------------
 void setup() { 
   pinMode(SMOKE, INPUT);
@@ -192,6 +204,7 @@ void setup() {
   RSS = WiFi.RSSI(); //checking the signal strength
   // setup mqtt and coap
   MQTTSetup();
+  CoAPSetup();
 }
 
 
@@ -203,8 +216,6 @@ void loop() {
   // loop for mqtt subscribe 
   client.loop();
   
-  // loop for web socket client
-  webSocket.loop();
 
   // possible reconnection
    if(WiFi.status() != WL_CONNECTED){
@@ -304,6 +315,7 @@ void loop() {
   } else if(prot_mode == '2'){
     Serial.println("Protocol: CoAP");
     // To-DO: Use Thing.CoAP
+    sendMessage(buffer_ff);
     
   } else{
     // no valid protocol, we can't do nothing until the sensor administrator does not digit a correct mode
@@ -316,4 +328,7 @@ void loop() {
 
   // loop the wifi client
   client.loop();
+
+  // Process CoAP client
+  coapClient.Process();
 }
