@@ -14,8 +14,10 @@ Project for Air Quality Monitoring in an indoor environment with gas and climate
 
 ## Dependencies 
 The entire project run on a Node.js proxy server, firstly we need to install dependencies with `npm install`.<br>
-For the sensor we uses some libraries installed from the library manager on the Arduino IDE like coap-simple, mqtt and ArduinoJSON. 
+For the sensor we uses some libraries installed from the library manager on the Arduino IDE like Thing.CoAP, mqtt and ArduinoJSON. 
 
+## CoAP Setup
+Sensors support MQTT and CoAP protocols. MQTT is connected to a Mosquitto deployed broker. If we want to use CoAP adapter, we need to install [Thing.CoAP](https://github.com/Alv3s/Thing.CoAP). We need to clone it locally and put the cloned repository in the Arduino libraries (Arduino IDE). Furthermore, we need to setup public IP of the proxy server on `proxyIp` variable; data related are on the server log during the startup.
 
 ## InfluxDB Setup
 If we want to set InfluxDB locally and use it for the Internet of Things air quality monitoring, we need to follows these terminal commands:
