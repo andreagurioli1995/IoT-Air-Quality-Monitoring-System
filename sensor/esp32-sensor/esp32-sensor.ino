@@ -298,8 +298,10 @@ void loop() {
     prot_mode=temp;
   }else if(temp=='t'){
     testingPing=!testingPing;
+    Serial.println("--------------------------------------------------");
     Serial.print("ping testing phase has switched to: ");
     Serial.println(testingPing);
+    Serial.println("--------------------------------------------------");
     timeCounter=0;
     avg=0;
     sumTime=0;
@@ -309,9 +311,11 @@ void loop() {
 
   if(timeCounter>10&&testingPing){
     testingPing=false;
-    Serial.println("testing completed with avg RTT time result of: ");
+    Serial.println("--------------------------------------------------");
+    Serial.println("testing completed with avg RTT resulting time of: ");
     Serial.print(avg);
     Serial.println("ms");
+    Serial.println("--------------------------------------------------");
   }
     
   // analogue reading from gas sensor
@@ -338,11 +342,11 @@ void loop() {
 
   // defining value of AQI based on the average value
   if(avg_gas <= MAX_GAS_VALUE){
-    AQI = 0;
+    AQI = 2;
   } else if(MIN_GAS_VALUE >= avg_gas > MAX_GAS_VALUE){
     AQI = 1;
   } else {
-    AQI = 2;
+    AQI = 0;
   }
 
   // read DHT22 sensors
