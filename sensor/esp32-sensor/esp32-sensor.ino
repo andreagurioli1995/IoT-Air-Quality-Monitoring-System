@@ -6,8 +6,7 @@
 #include <String.h>
 #include <ArduinoJson.h>
 #include "Thing.CoAP.h"
-#include "TimeLib.h"
-#include <Time.h>
+//#include <Time.h>
 
  
 #define DHTPIN 4 // Warning: data pin location can change during installation 
@@ -19,7 +18,10 @@ String id;
 const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
 
-
+//tinsting ping variable, if true, the board is in ping RTT test time
+bool testingPing=false;
+//looping variable in order to make synchronous the protocol for RTT testing
+bool looping=true;
 
 
 //Declare our CoAP client and the packet handler
@@ -44,7 +46,7 @@ int loops = 0;
 
 
 //variables for time computation
-unsigned long previousTime;
+unsigned long previousTime=millis();
 double sumTime=0;
 double avg;
 int timeCounter=0;
@@ -74,7 +76,7 @@ const char *topic = "sensor/1175/";
 const char *topic_receive_setup = "sensor/1175/setup";
 
 // ping for time delay computation
-const char *topic_receive_ping = "sensor/1175/time";
+const char *topic_receive_ping = "sensor/1175/ping";
 
 // sensor variables
 const char *data_topic = "sensor/1175/data";
@@ -107,13 +109,14 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
 
   if(!strcmp(topic,topic_receive_ping)){
      timeCounter+=1;
-     unsigned long overall_time = previousTime-millis();
+     unsigned long overall_time = millis()-previousTime;
      Serial.println("-------overall time--------");
      Serial.println(overall_time);
      sumTime+=overall_time;
      Serial.println("--------average time in ms--------");
      avg=sumTime/timeCounter;
      Serial.println(avg);
+     looping=true;
   }
 
 
@@ -152,7 +155,8 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       }
   
     }
-
+    
+      if(!testingPing){
     // printing of the message received 
     Serial.print("MQTT: Message Metadata Received from the Sensor:");
     for (int i = 0; i < length; i++) {
@@ -160,6 +164,8 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       }
     Serial.println();
     Serial.println("-----------------------");
+      }
+    
     }
    // end if
  }
@@ -192,14 +198,28 @@ void MQTTSetup(){
 
 // ------------ CoAP Functions ------------
 
-void sendMessage(char* payload){
+void sendMessage(char* payload,char* idGet){
   //Make a post
   Serial.print("CoAP: Sending data. ");
-  coapClient.Get("data", payload, [](Thing::CoAP::Response response){
+  coapClient.Get(idGet, payload, [idGet](Thing::CoAP::Response response){
+       
       std::vector<uint8_t> payload = response.GetPayload();
       std::string received(payload.begin(), payload.end());
       Serial.println("CoAP: Server sent the following message:");
       Serial.println(received.c_str());
+
+      if(!strcmp(idGet,"ping")){
+           timeCounter+=1;
+           unsigned long overall_time = millis()-previousTime;
+           Serial.println("-------overall time--------");
+           Serial.println(overall_time);
+           sumTime+=overall_time;
+           Serial.println("--------average time in ms--------");
+           avg=sumTime/timeCounter;
+           Serial.println(avg);
+           looping=true;
+        
+      }
   });
 }
 
@@ -240,7 +260,9 @@ void setup() {
 
 
 
-void loop() { 
+void loop() {
+
+  
 
   // loop for mqtt subscribe 
   client.loop();
@@ -260,9 +282,11 @@ void loop() {
   RSS = WiFi.RSSI();
 
   // Data printing 
+  if(!testingPing){
   Serial.println("--------- Data -----------");
   Serial.print("WiFi RSS Strength: ");
   Serial.println(RSS);
+  }
 
   // counting temporal loops
   loops++;
@@ -270,7 +294,24 @@ void loop() {
   // checking new input from the Serial
   temp = Serial.read();
   if(temp=='1'|| temp=='2' || temp=='3'){
+    previous_prot=prot_mode;
     prot_mode=temp;
+  }else if(temp=='t'){
+    testingPing=!testingPing;
+    Serial.print("ping testing phase has switched to: ");
+    Serial.println(testingPing);
+    timeCounter=0;
+    avg=0;
+    sumTime=0;
+    previousTime=0;
+    temp=previous_prot;
+  }
+
+  if(timeCounter>10&&testingPing){
+    testingPing=false;
+    Serial.println("testing completed with avg RTT time result of: ");
+    Serial.print(avg);
+    Serial.println("ms");
   }
     
   // analogue reading from gas sensor
@@ -304,13 +345,16 @@ void loop() {
     AQI = 2;
   }
 
-  // printing AQI
-  Serial.print("AQI:");
-  Serial.println(AQI);
-
   // read DHT22 sensors
   float humidity = dht_sensor.readHumidity(); 
   float temperature = dht_sensor.readTemperature(); 
+
+  
+  if(!testingPing){
+
+  // printing AQI
+  Serial.print("AQI:");
+  Serial.println(AQI);
 
   // print of the sensor values
   Serial.print("Gas sensor: ");
@@ -319,6 +363,7 @@ void loop() {
   Serial.println(temperature); 
   Serial.print("Humidity value: " );
   Serial.println(humidity);
+  }
 
   // Creating the json file for sending values
   doc["id"] = id;
@@ -338,33 +383,56 @@ void loop() {
   // verify protocol mode and execute the sending
   if (prot_mode == '1'){
     if(previous_prot!='1') timeCounter=0;
-    Serial.println("Protocol: MQTT");
+    if(!testingPing) Serial.println("Protocol: MQTT");
     // mqtt publish
 
-    client.publish(data_topic, buffer_ff,0);
+    if(!testingPing)client.publish(data_topic, buffer_ff,0);
     //ping testing on different QoS
-    previousTime=millis();
-    client.publish(topic_receive_ping, buffer_ff,0);
-    //client.publish(topic_receive_ping, buffer_ff,1);
-    //client.publish(topic_receive_ping, buffer_ff,2);
+    
+    if(testingPing&&looping){
+      previousTime=millis();
+      Serial.println("starting time ");
+      Serial.println(previousTime);
+      looping=false;
+      Serial.println("message sent!");
+      Serial.print("loop at ");
+      Serial.print(timeCounter);
+      Serial.println("/10");
+      client.publish(topic_receive_ping, buffer_ff,0);
+    }
+    //if(testingPing)client.publish(topic_receive_ping, buffer_ff,1);
+    //if(testingPing)client.publish(topic_receive_ping, buffer_ff,2);
   } else if(prot_mode == '2'){
     if(previous_prot!='2') timeCounter=0;
-    Serial.println("Protocol: CoAP");
+    if(!testingPing) Serial.println("Protocol: CoAP");
     // To-DO: Use Thing.CoAP
-    sendMessage(buffer_ff);
+   
+    if(!testingPing)sendMessage(buffer_ff,"data");
+    if(testingPing&&looping){
+      previousTime=millis();
+      Serial.println(previousTime);
+      looping=false;
+      Serial.println("message sent!");
+      Serial.print("loop at ");
+      Serial.print(timeCounter);
+      sendMessage(buffer_ff,"ping");
+    }
+      
+    
     
   } else{
     // no valid protocol, we can't do nothing until the sensor administrator does not digit a correct mode
     Serial.println("Invalid Protocol Value: Digit 1 for MQTT or 2 for CoAP");
   }
   
-  Serial.println("--------------------------");
+  if(!testingPing)Serial.println("--------------------------");
   // customized delay based on the runtime setup
-  delay(SAMPLE_FREQUENCY); 
+  if(!testingPing)delay(SAMPLE_FREQUENCY); 
 
   // loop the wifi client
   client.loop();
 
   // Process CoAP client
   coapClient.Process();
+  
 }
