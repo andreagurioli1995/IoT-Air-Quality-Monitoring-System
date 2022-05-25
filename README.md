@@ -26,6 +26,9 @@ If we want to set InfluxDB locally and use it for the Internet of Things air qua
 - Open the first terminal and digit `influxd` to open the InfluxDB logging system.
 - Digit `telegraf --config http://localhost:8086/api/v2/telegrafs/<serial-code>` in a second terminal with the serial code given during the telegraf installation.
 
+## Grafana Dashboard
+We used Grafana for time series panels and check runtime views on the data changing over time. The entire guidelines to set it and put information inside an embedded dashboard are well-described in the [official documentation](https://grafana.com/docs/grafana/latest/getting-started/getting-started-influxdb/).
+
 ## Contributors
 - Andrea Gurioli (@andreagurioli1995)
 - Mario Sessa (@kode-git)
