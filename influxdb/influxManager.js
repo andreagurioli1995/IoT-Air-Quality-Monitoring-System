@@ -10,8 +10,6 @@ class InfluxManager {
         this.port = port
         this.token = token
         this.org = org
-        this.bot = new Telegraf("5329123037:AAGWMTqbfvNir4KjIFpdNT7e250pfGabjF8")
-        this.initBot();
     }
 
     initBot(){
@@ -22,12 +20,12 @@ class InfluxManager {
         })
 
         this.bot.command('temp', context=>{
-            input = context.update.message
-            host = input.text.slip(' ')[1]
+            let textBot = context.update.message
+            let host = textBot.text.split(' ')[1]
             if(host == null || host == undefined || host == " "){
                 context.reply('Need to specify a sensor host id!')
             } else {
-                bucket = "temperature"
+                let bucket = "temperature"
                 let query = `
                 from(bucket: "${bucket}") 
                 |> range(start: -10m)
@@ -47,19 +45,20 @@ class InfluxManager {
                     },
                     error(e) {
                         console.log('InfluxDB Error: ' + e)
-                        rowResult = -1
                     },
                     complete() {
                         if(rowResult == undefined || rowResult == null){
-                            rowResult = -1
                         } else {
+                            console.log('Writing bot...')
                             context.reply("Bucket: " + bucket + " has " + rowResult + "° on host " + host)
-                            return rowResult
+                            
                         }
                     },
                 })
             }
         })
+
+        this.bot.launch()
     }
 
 
