@@ -193,8 +193,6 @@ void MQTTSetup(){
     }
 }
 
-// ------------ End MQTT Functions --------------
-
 
 // ------------ CoAP Functions ------------
 
@@ -202,8 +200,7 @@ void MQTTSetup(){
 
 void CoAPSetup(){
     server.SetPacketProvider(udpProvider);
-    //Connect CoAP client to a server
-    Serial.println("CoAP: Connecting to CoAP Server");
+
     //coapClient.Start(proxyIp, 5683);
 
 
@@ -212,14 +209,14 @@ void CoAPSetup(){
       Serial.println("GET Request received for endpoint 'data'");
 
       // preparing buffers for String conversation
-     char buffer_ff[sizeof(doc)];
+       char buffer_ff[sizeof(doc)];
       serializeJson(doc, buffer_ff);
 
 
-       //Return the current state of our "LED".
+       //Return the current state of our data
       return Thing::CoAP::Status::Content(buffer_ff);
     }).OnPost([](Thing::CoAP::Request& request) {  //We are here configuring telling our server that, when we receive a "POST" request to this endpoint, run the the following code
-      Serial.println("POST Request received for endpoint 'LED'");
+      Serial.println("POST Request received for endpoint 'sensor data'");
 
       //Get the message sent fromthe client and parse it to a string      
       auto payload = request.GetPayload();
@@ -228,16 +225,12 @@ void CoAPSetup(){
       Serial.print("The client sent the message: ");
       Serial.println(message.c_str());
 
-      if(message == "On") { //If the message is "On" we will turn the LED on.
-        //digitalWrite(LED, HIGH);
-      } else if (message == "Off") { //If it is "Off" we will turn the LED off.
-        //digitalWrite(LED, LOW);
+      if(message == "ping") { //If the message is "On" we will turn the LED on.
       } else { //In case any other message is received we will respond a "BadRequest" error.
         return Thing::CoAP::Status::BadRequest();
       }
-
       //In case "On" or "Off" was received, we will return "Ok" with a message saying "Command Executed".
-      return Thing::CoAP::Status::Content("Command Executed");
+      return Thing::CoAP::Status::Content("Message received!");
     });
 
     server.Start();
