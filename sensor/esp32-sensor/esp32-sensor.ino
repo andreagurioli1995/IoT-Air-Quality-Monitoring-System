@@ -49,7 +49,7 @@ int loops = 0;
 unsigned long previousTime=millis();
 double sumTime=0;
 double avg;
-int timeCounter=0;
+int timeCounter=1;
 
 // Protocol switching variables
 char prot_mode = '1';
@@ -77,6 +77,9 @@ const char *topic_receive_setup = "sensor/1175/setup";
 
 // ping for time delay computation
 const char *topic_receive_ping = "sensor/1175/ping";
+
+const char *topic_receive_RTT = "sensor/1175/test-mqtt";
+const char *topic_send_RTT_result = "sensor/1175/test-mqtt-res";
 
 // sensor variables
 const char *data_topic = "sensor/1175/data";
@@ -108,15 +111,28 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  char bufferfreq[length];
 
   if(!strcmp(topic,topic_receive_ping)){
-     timeCounter+=1;
      unsigned long overall_time = millis()-previousTime;
      Serial.println("-------overall time--------");
      Serial.println(overall_time);
      sumTime+=overall_time;
      Serial.println("--------average time in ms--------");
      avg=sumTime/timeCounter;
+     timeCounter+=1;
      Serial.println(avg);
      looping=true;
+  }
+
+  if(!strcmp(topic,topic_receive_RTT)){
+    testingPing=!testingPing;
+    Serial.println("--------------------------------------------------");
+    Serial.print("ping testing phase has switched to: ");
+    Serial.println(testingPing);
+    Serial.println("--------------------------------------------------");
+    timeCounter=1;
+    avg=0;
+    sumTime=0;
+    previousTime=0;
+    temp=previous_prot;
   }
 
 
@@ -183,6 +199,8 @@ void MQTTSetup(){
          client.subscribe(topic_receive_setup);
          //ping subscribe for protocol evaluation
          client.subscribe(topic_receive_ping);
+          //subscribe for mqtt external testing RTT
+         client.subscribe(topic_receive_RTT);
          
      } else {
          // connection error handler
@@ -308,11 +326,12 @@ void loop() {
     Serial.print("ping testing phase has switched to: ");
     Serial.println(testingPing);
     Serial.println("--------------------------------------------------");
-    timeCounter=0;
+    timeCounter=1;
     avg=0;
     sumTime=0;
     previousTime=0;
     temp=previous_prot;
+    
   }
 
   if(timeCounter>10&&testingPing){
@@ -321,6 +340,10 @@ void loop() {
     Serial.println("testing completed with avg RTT resulting time of: ");
     Serial.print(avg);
     Serial.println("ms");
+    char buffer_avg[sizeof(avg)];
+    snprintf(buffer_avg, sizeof buffer_avg, "%lf", avg);
+    client.publish(topic_send_RTT_result, buffer_avg,2);
+    
     Serial.println("--------------------------------------------------");
   }
     
@@ -392,7 +415,7 @@ void loop() {
 
   // verify protocol mode and execute the sending
   if (prot_mode == '1'){
-    if(previous_prot!='1') timeCounter=0;
+    if(previous_prot!='1') timeCounter=1;
     if(!testingPing) Serial.println("Protocol: MQTT");
     // mqtt publish
 
@@ -401,8 +424,6 @@ void loop() {
     
     if(testingPing&&looping){
       previousTime=millis();
-      Serial.println("starting time ");
-      Serial.println(previousTime);
       looping=false;
       Serial.println("message sent!");
       Serial.print("loop at ");
@@ -413,7 +434,7 @@ void loop() {
     //if(testingPing)client.publish(topic_receive_ping, buffer_ff,1);
     //if(testingPing)client.publish(topic_receive_ping, buffer_ff,2);
   } else if(prot_mode == '2'){
-    if(previous_prot!='2') timeCounter=0;
+    if(previous_prot!='2') timeCounter=1;
     if(!testingPing) Serial.println("Protocol: CoAP");
     // To-DO: Use Thing.CoAP   
     server.Process();  
