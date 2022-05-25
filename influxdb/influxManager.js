@@ -1,7 +1,5 @@
 const { InfluxDB } = require('@influxdata/influxdb-client')
 const { Point } = require('@influxdata/influxdb-client')
-const { Telegraf } = require('telegraf')
-
 
 class InfluxManager {
     constructor(host, port, token, org) {
@@ -11,56 +9,6 @@ class InfluxManager {
         this.token = token
         this.org = org
     }
-
-    initBot(){
-        console.log('InfluxDB: Initialize Telegram Bot.')
-        this.bot.start((context) => {
-            console.log("InfluxDB: Alert Bot started")
-            context.reply("Echo service started")
-        })
-
-        this.bot.command('temp', context=>{
-            let textBot = context.update.message
-            let host = textBot.text.split(' ')[1]
-            if(host == null || host == undefined || host == " "){
-                context.reply('Need to specify a sensor host id!')
-            } else {
-                let bucket = "temperature"
-                let query = `
-                from(bucket: "${bucket}") 
-                |> range(start: -10m)
-                |> filter(fn: (r) => r["_measurement"] == "val")
-                |> filter(fn: (r) => r["_field"] == "value")
-                |> filter(fn: (r) => r["host"] == "${host}")
-                |> movingAverage(n: 5)
-                |> yield(name: "mean")
-                `
-                console.log('Query: ' + query)
-                const queryApi = this.client.getQueryApi(this.org)
-                var rowResult;
-                queryApi.queryRows(query, {
-                    next(row, tableMeta) {
-                        rowResult = tableMeta.toObject(row)._value
-                        //console.log(`${rowResult._time} ${rowResult._measurement}: ${rowResult._field}=${rowResult._value}`)
-                    },
-                    error(e) {
-                        console.log('InfluxDB Error: ' + e)
-                    },
-                    complete() {
-                        if(rowResult == undefined || rowResult == null){
-                        } else {
-                            console.log('Writing bot...')
-                            context.reply("Bucket: " + bucket + " has " + rowResult + "° on host " + host)
-                            
-                        }
-                    },
-                })
-            }
-        })
-
-        this.bot.launch()
-    }
-
 
     writeApi(clientId, bucket, value) {
         const writeApi = this.client.getWriteApi(this.org, bucket)
@@ -180,7 +128,7 @@ function main() {
     console.log('InfluxDB: Ending main...')
 }
 
-main()
+// main()
 
 module.exports = {
     InfluxManager,

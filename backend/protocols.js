@@ -50,7 +50,7 @@ init = () => {
 
   // mqtt handler
   client.on('connect', () => {
-    console.log(`Listening in CoAP on ${hostMqtt}:${portMqtt}.`)
+    console.log(`Listening in MQTT on ${hostMqtt}:${portMqtt}.`)
     console.log('---------------------')
     console.log('MQTT Subscriptions: ')
     try {
