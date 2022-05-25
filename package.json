@@ -29,7 +29,8 @@
     "mqtt": "^4.3.7",
     "nodejs": "^0.0.0",
     "request": "^2.88.2",
-    "stream-http": "github:node-influx/stream-http"
+    "stream-http": "github:node-influx/stream-http",
+    "telegraf": "^4.8.2"
   },
   "engines": {
     "node": "16.x"

@@ -18,9 +18,10 @@ String id;
 const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
 
-//tinsting ping variable, if true, the board is in ping RTT test time
+// Testing ping variable, if true, the board is in ping RTT test time
 bool testingPing=false;
-//looping variable in order to make synchronous the protocol for RTT testing
+
+// looping variable in order to make synchronous the protocol for RTT testing
 bool looping=true;
 
 
@@ -40,16 +41,16 @@ float RSS = 0;
 // Variables for AQI calculations
 int gas_values[5] = {0,0,0,0,0};
 float avg_gas;  
-
+int cap_gas = 4500;
 //counter for gas mean purposes
 int loops = 0;
 
 
 //variables for time computation
-unsigned long previousTime=millis();
-double sumTime=0;
+unsigned long previousTime = millis();
+double sumTime = 0;
 double avg;
-int timeCounter=1;
+int timeCounter = 1;
 
 // Protocol switching variables
 char prot_mode = '1';
@@ -57,10 +58,10 @@ char previous_prot = '1';
 char temp;
 
 // WiFi Data
- const char *ssid = "iPhone"; // Warning: enter your WiFi name
- const char *password = "19951995";  // Warning: enter WiFi password
-//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+//const char *ssid = "iPhone"; // Warning: enter your WiFi name
+//const char *password = "19951995";  // Warning: enter WiFi password
+const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
@@ -70,7 +71,6 @@ IPAddress proxyIp(192,168,1,2);
 // MQTT Broker
 const char *mqtt_broker = "130.136.2.70";
 const char *topic = "sensor/1175/";
-
 
 // setup variables
 const char *topic_receive_setup = "sensor/1175/setup";
@@ -101,7 +101,6 @@ DHT dht_sensor(DHTPIN,DHT22);
 
 
 // Functions 
-
 // ------------ MQTT Functions --------------
 
 // ----------- MQTT Callback -----------
@@ -112,10 +111,10 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
 
   if(!strcmp(topic,topic_receive_ping)){
      unsigned long overall_time = millis()-previousTime;
-     Serial.println("-------overall time--------");
+     Serial.println("------- MQTT Overall time --------");
      Serial.println(overall_time);
      sumTime+=overall_time;
-     Serial.println("--------average time in ms--------");
+     Serial.println("-------- MQTT Average time in ms --------");
      avg=sumTime/timeCounter;
      timeCounter+=1;
      Serial.println(avg);
@@ -123,16 +122,16 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
   }
 
   if(!strcmp(topic,topic_receive_RTT)){
-    testingPing=!testingPing;
+    testingPing =! testingPing;
     Serial.println("--------------------------------------------------");
-    Serial.print("ping testing phase has switched to: ");
+    Serial.print("MQTT Ping testing phase has switched to: ");
     Serial.println(testingPing);
     Serial.println("--------------------------------------------------");
-    timeCounter=1;
-    avg=0;
-    sumTime=0;
-    previousTime=0;
-    temp=previous_prot;
+    timeCounter = 1;
+    avg = 0;
+    sumTime = 0;
+    previousTime = 0;
+    temp = previous_prot;
   }
 
 
@@ -186,8 +185,6 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
    // end if
  }
 
-
-
 // ------------- MQTT Setup -----------------
 void MQTTSetup(){
   client.setServer(mqtt_broker, mqtt_port);
@@ -211,17 +208,11 @@ void MQTTSetup(){
     }
 }
 
-
 // ------------ CoAP Functions ------------
-
-
 
 void CoAPSetup(){
     server.SetPacketProvider(udpProvider);
-
     //coapClient.Start(proxyIp, 5683);
-
-
     server.CreateResource("data", Thing::CoAP::ContentFormat::TextPlain, true) //True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) { //We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the the following code
       Serial.println("GET Request received for endpoint 'data'");
@@ -281,17 +272,10 @@ void setup() {
 }
 
 
-
-
-
 void loop() {
-
-  
-
   // loop for mqtt subscribe 
   client.loop();
   
-
   // possible reconnection
    if(WiFi.status() != WL_CONNECTED){
       WiFi.reconnect();
@@ -318,19 +302,19 @@ void loop() {
   // checking new input from the Serial
   temp = Serial.read();
   if(temp=='1'|| temp=='2' || temp=='3'){
-    previous_prot=prot_mode;
-    prot_mode=temp;
+    previous_prot = prot_mode;
+    prot_mode = temp;
   }else if(temp=='t'){
     testingPing=!testingPing;
     Serial.println("--------------------------------------------------");
-    Serial.print("ping testing phase has switched to: ");
+    Serial.print("Ping testing phase has switched to: ");
     Serial.println(testingPing);
     Serial.println("--------------------------------------------------");
-    timeCounter=1;
-    avg=0;
-    sumTime=0;
-    previousTime=0;
-    temp=previous_prot;
+    timeCounter = 1;
+    avg = 0;
+    sumTime = 0;
+    previousTime = 0;
+    temp = previous_prot;
     
   }
 
@@ -419,7 +403,7 @@ void loop() {
     if(!testingPing) Serial.println("Protocol: MQTT");
     // mqtt publish
 
-    if(!testingPing)client.publish(data_topic, buffer_ff,0);
+    if(!testingPing) client.publish(data_topic, buffer_ff,0);
     //ping testing on different QoS
     
     if(testingPing&&looping){
