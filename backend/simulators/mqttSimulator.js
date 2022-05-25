@@ -24,10 +24,10 @@ class MqttSimulator {
         //create an object to send as POST data
         const payloads = {
             id: 'EM01',
-            gasv: {gas : 300, AQI : 1},
-            temp: 32.20,
-            hum: 40.20,
-            rss: -60,
+            gasv: {gas : Math.floor(Math.random()*4500), AQI : Math.floor(Math.random()*3)},
+            temp: (Math.random()*35.0) + 28.0,
+            hum: (Math.random()*50.0) + 45.0,
+            rss: Math.floor(Math.random()*-80),
             gps: {lat : 41.40338, lng : 2.17403},
             };
 
