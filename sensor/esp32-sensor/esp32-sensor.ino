@@ -25,7 +25,7 @@ bool looping=true;
 
 
 //Declare our CoAP client and the packet handler
-Thing::CoAP::Client coapClient;
+Thing::CoAP::Server server;
 Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 
 // setting metadata
@@ -198,36 +198,49 @@ void MQTTSetup(){
 
 // ------------ CoAP Functions ------------
 
-void sendMessage(char* payload,char* idGet){
-  //Make a post
-  Serial.print("CoAP: Sending data. ");
-  coapClient.Get(idGet, payload, [idGet](Thing::CoAP::Response response){
-       
-      std::vector<uint8_t> payload = response.GetPayload();
-      std::string received(payload.begin(), payload.end());
-      Serial.println("CoAP: Server sent the following message:");
-      Serial.println(received.c_str());
 
-      if(!strcmp(idGet,"ping")){
-           timeCounter+=1;
-           unsigned long overall_time = millis()-previousTime;
-           Serial.println("-------overall time--------");
-           Serial.println(overall_time);
-           sumTime+=overall_time;
-           Serial.println("--------average time in ms--------");
-           avg=sumTime/timeCounter;
-           Serial.println(avg);
-           looping=true;
-        
-      }
-  });
-}
 
 void CoAPSetup(){
-    coapClient.SetPacketProvider(udpProvider);
+    server.SetPacketProvider(udpProvider);
     //Connect CoAP client to a server
     Serial.println("CoAP: Connecting to CoAP Server");
-    coapClient.Start(proxyIp, 5683);
+    //coapClient.Start(proxyIp, 5683);
+
+
+    server.CreateResource("data", Thing::CoAP::ContentFormat::TextPlain, true) //True means that this resource is observable
+    .OnGet([](Thing::CoAP::Request & request) { //We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the the following code
+      Serial.println("GET Request received for endpoint 'data'");
+
+      // preparing buffers for String conversation
+     char buffer_ff[sizeof(doc)];
+      serializeJson(doc, buffer_ff);
+
+
+       //Return the current state of our "LED".
+      return Thing::CoAP::Status::Content(buffer_ff);
+    }).OnPost([](Thing::CoAP::Request& request) {  //We are here configuring telling our server that, when we receive a "POST" request to this endpoint, run the the following code
+      Serial.println("POST Request received for endpoint 'LED'");
+
+      //Get the message sent fromthe client and parse it to a string      
+      auto payload = request.GetPayload();
+      std::string message(payload.begin(), payload.end());
+      
+      Serial.print("The client sent the message: ");
+      Serial.println(message.c_str());
+
+      if(message == "On") { //If the message is "On" we will turn the LED on.
+        //digitalWrite(LED, HIGH);
+      } else if (message == "Off") { //If it is "Off" we will turn the LED off.
+        //digitalWrite(LED, LOW);
+      } else { //In case any other message is received we will respond a "BadRequest" error.
+        return Thing::CoAP::Status::BadRequest();
+      }
+
+      //In case "On" or "Off" was received, we will return "Ok" with a message saying "Command Executed".
+      return Thing::CoAP::Status::Content("Command Executed");
+    });
+
+    server.Start();
 }
 
 // ------------ Setup -----------------
@@ -409,20 +422,8 @@ void loop() {
   } else if(prot_mode == '2'){
     if(previous_prot!='2') timeCounter=0;
     if(!testingPing) Serial.println("Protocol: CoAP");
-    // To-DO: Use Thing.CoAP
-   
-    if(!testingPing)sendMessage(buffer_ff,"data");
-    if(testingPing&&looping){
-      previousTime=millis();
-      Serial.println(previousTime);
-      looping=false;
-      Serial.println("message sent!");
-      Serial.print("loop at ");
-      Serial.print(timeCounter);
-      sendMessage(buffer_ff,"ping");
-    }
-      
-    
+    // To-DO: Use Thing.CoAP   
+    server.Process();  
     
   } else{
     // no valid protocol, we can't do nothing until the sensor administrator does not digit a correct mode
@@ -436,7 +437,5 @@ void loop() {
   // loop the wifi client
   client.loop();
 
-  // Process CoAP client
-  coapClient.Process();
   
 }
