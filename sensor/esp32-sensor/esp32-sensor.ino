@@ -122,12 +122,25 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
 
 
 
-
+//handling the request for switching the protocol
   if(!strcmp(topic,topic_req_switch )){
      for (int i = 0; i < length; i++) {
      bufferfreq[i]=(char) payload[i];
       }
       int prot = atoi(bufferfreq);
+      char buffer_dt[sizeof(docp)];  
+      docp["id"] = id;
+      docp["protocol"] = prot;
+      docp["ip"]=WiFi.localIP();
+      serializeJson(docp, buffer_dt);
+      client.publish(topic_topic_switch, buffer_dt,2);
+      if(prot==0){
+            previous_prot = prot_mode;
+            prot_mode = '1';        
+      }else if(prot==1){
+            previous_prot = prot_mode;
+            prot_mode = '2';
+      }
   }
  
 
