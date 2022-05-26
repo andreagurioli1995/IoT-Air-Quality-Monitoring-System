@@ -17,6 +17,8 @@ const float lng = 11.353;
 String id;
 const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
+// json for switching protocol
+StaticJsonDocument<capacity> docp;
 
 // Testing ping variable, if true, the board is in ping RTT test time
 bool testingPing=false;
@@ -78,6 +80,14 @@ const char *topic_receive_setup = "sensor/1175/setup";
 // ping for time delay computation
 const char *topic_receive_ping = "sensor/1175/ping";
 
+
+const char *topic_topic_switch = "sensor/1175/switch";//manda id, ip e protocollo 0 mqtt 1 per coap
+
+const char *topic_req_switch = "sensor/1175/switchRequest"; // richiesta di switching di protocollo
+
+
+
+
 const char *topic_receive_RTT = "sensor/1175/test-mqtt";
 const char *topic_send_RTT_result = "sensor/1175/test-mqtt-res";
 
@@ -108,6 +118,18 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  Serial.print("Message arrived on topic: ");
  Serial.println(topic);
  char bufferfreq[length];
+
+
+
+
+
+  if(!strcmp(topic,topic_req_switch )){
+     for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+      }
+      int prot = atoi(bufferfreq);
+  }
+ 
 
   if(!strcmp(topic,topic_receive_ping)){
      unsigned long overall_time = millis()-previousTime;
@@ -198,6 +220,7 @@ void MQTTSetup(){
          client.subscribe(topic_receive_ping);
           //subscribe for mqtt external testing RTT
          client.subscribe(topic_receive_RTT);
+         client.subscribe(topic_req_switch);
          
      } else {
          // connection error handler
@@ -224,22 +247,17 @@ void CoAPSetup(){
 
        //Return the current state of our data
       return Thing::CoAP::Status::Content(buffer_ff);
-    }).OnPost([](Thing::CoAP::Request& request) {  //We are here configuring telling our server that, when we receive a "POST" request to this endpoint, run the the following code
-      Serial.println("POST Request received for endpoint 'sensor data'");
+    });
 
-      //Get the message sent fromthe client and parse it to a string      
-      auto payload = request.GetPayload();
-      std::string message(payload.begin(), payload.end());
-      
-      Serial.print("The client sent the message: ");
-      Serial.println(message.c_str());
 
-      if(message == "ping") { //If the message is "On" we will turn the LED on.
-      } else { //In case any other message is received we will respond a "BadRequest" error.
-        return Thing::CoAP::Status::BadRequest();
-      }
-      //In case "On" or "Off" was received, we will return "Ok" with a message saying "Command Executed".
-      return Thing::CoAP::Status::Content("Message received!");
+      server.CreateResource("test", Thing::CoAP::ContentFormat::TextPlain, true) //True means that this resource is observable
+    .OnGet([](Thing::CoAP::Request & request) { //We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the the following code
+      Serial.println("GET Request received for endpoint 'data'");
+
+
+
+       //Return the current state of our data
+      return Thing::CoAP::Status::Content("200");
     });
 
     server.Start();
@@ -304,6 +322,32 @@ void loop() {
   if(temp=='1'|| temp=='2' || temp=='3'){
     previous_prot = prot_mode;
     prot_mode = temp;
+
+
+  
+    // preparing buffers for String conversation
+    char buffer_dt[sizeof(docp)];
+    
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    
+    if(temp=='1'){
+      docp["id"] = id;
+      docp["protocol"] = 0;
+      docp["ip"]=WiFi.localIP();
+      serializeJson(docp, buffer_dt);
+      client.publish(topic_topic_switch, buffer_dt,2);
+    }else if(temp=='2'){
+      docp["id"] = id;
+      docp["protocol"] = 1;
+      docp["ip"]=WiFi.localIP();
+      serializeJson(docp, buffer_dt);
+      client.publish(topic_topic_switch, buffer_dt,2);
+    }
+
+
+    
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   }else if(temp=='t'){
     testingPing=!testingPing;
     Serial.println("--------------------------------------------------");
@@ -391,6 +435,7 @@ void loop() {
   doc["hum"] = humidity;
   doc["gasv"]["gas"] = gas;
   doc["gasv"]["AQI"] = AQI;
+  doc["ip"]=WiFi.localIP();
 
 
   // preparing buffers for String conversation
