@@ -3,7 +3,7 @@ const { InfluxDB } = require('@influxdata/influxdb-client')
 const { Telegraf } = require('telegraf')
 
 const InfluxData = {
-    token : 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
+    token : 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==' : String ,
     host : 'localhost',
     org : 'iot-org',
     port : 8086,
@@ -15,7 +15,8 @@ const InfluxData = {
         gas: 'gas',
     },
 }
-client = new InfluxDB({ url: 'http://' + InfluxData.host + ":" + InfluxData.port, token: InfluxData.token })
+
+client  = new InfluxDB({ url: 'http://' + InfluxData.host + ":" + InfluxData.port, token: InfluxData.token })
 
 bot = new Telegraf("5329123037:AAGWMTqbfvNir4KjIFpdNT7e250pfGabjF8")
 bot.start((context) => {

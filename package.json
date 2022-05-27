@@ -30,6 +30,7 @@
     "nodejs": "^0.0.0",
     "request": "^2.88.2",
     "stream-http": "github:node-influx/stream-http",
+    "sweetalert2": "^11.4.17",
     "telegraf": "^4.8.2"
   },
   "engines": {

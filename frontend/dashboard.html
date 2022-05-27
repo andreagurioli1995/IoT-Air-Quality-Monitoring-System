@@ -8,8 +8,10 @@
     <link rel="stylesheet" type="text/css"
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/boxicons@latest/css/boxicons.min.css">
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src=" https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
 
 </head>
 <style>
@@ -51,7 +53,7 @@
         color: white;
 
     }
-    
+
     .header {
         width: 100%;
         height: var(--header-height);
@@ -232,50 +234,50 @@
             <div class="col">
 
                 <!-- Form for the setup on a sensor -->
-                <form action="update-setup" method="post">
-                    <div class="form-row align-items-center">
-                        <div class="col">
-                            <label class="sr-only" for="inlineFormInputGroup">Sensor ID:</label>
-                            <div class="input-group mb-2">
-                                <input type="text" class="form-control" id="inlineFormInputGroup" name="id"
-                                    placeholder="Sensor ID" required>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <label class="sr-only" for="inlineFormInputGroup">Min. Gas Value</label>
-                            <div class="input-group mb-2">
-                                <input type="number" class="form-control" id="inlineFormInputGroup" name="minGas"
-                                    placeholder="Min. Gas Value">
-                                <div class="input-group-prepend">
-                                    <div class="input-group-text">ppfd</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <label class="sr-only" for="inlineFormInputGroup">Max. Gas. Value</label>
-                            <div class="input-group mb-2">
-                                <input type="number" class="form-control" id="inlineFormInputGroup" name="maxGas"
-                                    placeholder="Max. Gas. Value">
-                                <div class="input-group-prepend">
-                                    <div class="input-group-text">ppfd</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <label class="sr-only" for="inlineFormInputGroup">Sample Frequency</label>
-                            <div class="input-group mb-2">
-                                <input type="number" class="form-control" id="inlineFormInputGroup"
-                                    name="sampleFrequency" placeholder="Sample Frequency">
-                                <div class="input-group-prepend">
-                                    <div class="input-group-text">sec</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <button type="submit" class="btn btn-danger mb-2">Send Setup</button>
+
+                <div class="form-row align-items-center">
+                    <div class="col">
+                        <label class="sr-only" for="sensor-id">Sensor ID:</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="sensor-id" name="id"
+                                placeholder="Sensor ID" required>
                         </div>
                     </div>
-                </form>
+                    <div class="col">
+                        <label class="sr-only" for="min-gas">Min. Gas Value</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="min-gas"  name="minGas"
+                                placeholder="Min. Gas Value">
+                            <div class="input-group-prepend">
+                                <div class="input-group-text">ppfd</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <label class="sr-only" for="max-gas">Max. Gas. Value</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control" id="max-gas"  name="maxGas"
+                                placeholder="Max. Gas. Value">
+                            <div class="input-group-prepend">
+                                <div class="input-group-text">ppfd</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <label class="sr-only" for="Sample-frequency">Sample Frequency</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control"  id="sample-frequency"
+                                name="sampleFrequency" placeholder="Sample Frequency">
+                            <div class="input-group-prepend">
+                                <div class="input-group-text">sec</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <button type="submit" id="setup-button" class="btn btn-danger mb-2">Send Setup</button>
+                    </div>
+                </div>
+
 
             </div> <!-- end col -->
 
@@ -289,6 +291,8 @@
                                 <th scope="col">Sensor ID</th>
                                 <th scope="col">Test MQTT</th>
                                 <th scope="col">Test CoAP</th>
+                                <th scope="col">IP</th>
+                                <th scope="col">Action</th>
                             </tr>
                         </thead>
                         <tbody id="tbody">
@@ -336,53 +340,65 @@
         });
 
         const addRow = (data) => {
-            let length = data.id.length
+            let length = data.length
             let tBody = document.getElementById('tbody')
             let child = tBody.lastElementChild;
             console.log('Length: ' + length)
-            console.log(data.id)
             while (child) {
                 tBody.removeChild(child);
                 child = tBody.lastElementChild;
             }
             for (let i = 0; i < length; i++) {
-                let id = data.id[i]
+                let id = data[i].id
                 let tr = document.createElement('tr')
                 let th = document.createElement('th')
                 let td = document.createElement('td')
                 let tdMqtt = document.createElement('td')
                 let tdCoap = document.createElement('td')
+                let tdIp = document.createElement('td')
+                let tdAct = document.createElement('td')
+                tdCoap.setAttribute('id', "coap-" + id)
+                tdMqtt.setAttribute('id', "mqtt-" + id)
                 th.setAttribute('scope', 'row')
                 th.innerHTML = i
                 td.innerHTML = id
-                if(data.testMqtt[id] == undefined || data.testMqtt[id] == null){
-                    let buttonMqtt = document.createElement('button')
-                    buttonMqtt.innerHTML = "Test MQTT"
-                    buttonMqtt.addEventListener('click', (e) =>{
-                        // TODO: Check it on proxy
-                    })
-                    buttonMqtt.setAttribute('class', "btn btn-danger mb-1")
-                    tdMqtt.appendChild(buttonMqtt)
+                tdIp.innerHTML = data[i].ip
+                if (data[i].mqtt == undefined || data[i].mqtt == null || data[i].mqtt == "") {
+                    tdMqtt.innerHTML = " - "
                 } else {
-                    tdMqtt.innerHTML = data.testMqtt[id] + ""
+                    tdMqtt.innerHTML = data[i].mqtt + " ms"
                 }
 
-                if(data.testCoap[id] == undefined || data.testCoap[id] == null){
-                    let buttonCoap = document.createElement('button')
-                    buttonCoap.setAttribute('class', "btn btn-danger mb-1")
-                    buttonCoap.innerHTML = "Test CoAP"
-                    buttonCoap.addEventListener('click', (e) =>{
-                        // TODO: Check it on proxy
-                    })
-                    tdCoap.appendChild(buttonCoap)
+                if (data[i].coap == undefined || data[i].coap == null || data[i].coap == "") {
+                    tdCoap.innerHTML = " - "
                 } else {
                     console.log('Adding elements on TestCoap')
-                    tdCoap.innerHTML = data.testCoap[id] + ""
+                    tdCoap.innerHTML = data[i].coap + " ms"
                 }
+
+                let button = document.createElement('button')
+                button.setAttribute('class', 'btn btn-danger mb-2')
+                if(data[i].protocol == 0){
+                    // mqtt
+                    button.innerHTML = "Test MQTT"
+                    button.addEventListener('click', (e)=>{
+                        
+                    })
+                } else {
+                    // coap
+                    button.innerHTML = "Test CoAP"
+                    button.addEventListener('click', (e)=>{
+
+                    })
+                }
+                tdAct.appendChild(button)
                 tr.appendChild(th)
                 tr.appendChild(td)
                 tr.appendChild(tdMqtt)
                 tr.appendChild(tdCoap)
+                tr.appendChild(tdIp)
+                tr.appendChild(tdAct)
+                tr.setAttribute('id', data[i].id)
                 tBody.appendChild(tr)
             }
         }
@@ -390,10 +406,58 @@
         const updateButton = document.getElementById('update-button');
         updateButton.addEventListener('click', (e) => {
             $.get("get-sensor-data", function (data) {
-                addRow(data) 
+                console.log(data)
+                addRow(data)
             });
         })
 
+        const setupButton = document.getElementById('setup-button');
+        setupButton.addEventListener('click', (e) => {
+            // getting data
+            _id = document.getElementById('sensor-id').value
+            _minGas = document.getElementById('min-gas').value
+            _maxGas = document.getElementById('max-gas').value
+            _sampleFrequency = document.getElementById('sample-frequency').value
+
+            jsonData = {
+                id: _id,
+                minGas: _minGas,
+                maxGas: _maxGas,
+                sampleFrequency: _sampleFrequency,
+            }
+
+            if ((Number.isInteger(_sampleFrequency) || _sampleFrequency == "") && (Number.isInteger(_minGas) || _minGas == "")
+                && (Number.isInteger(_maxGas) || _maxGas == "") && id != "") {
+                $.ajax({
+                    type: 'POST',
+                    url: '/update-setup',
+                    data: JSON.stringify(jsonData),
+                    contentType: "application/json; charset=utf-8",
+                    traditional: true,
+                    success: function (data) {
+                        if (data.status == 400) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Oops...',
+                                text: 'Something went wrong! Parameters are not correct!',
+                            })
+                        } else {
+                            Swal.fire(
+                                'Sensor Update',
+                                'Values updated correctly.',
+                                'success'
+                            )
+                        }
+                    }
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Something went wrong! Parameters are not correct!',
+                })
+            }
+        });
 
 
     </script>

@@ -89,8 +89,6 @@ app.get('/get-sensor-data', protocols.getSensorData)
 // update data for sensor via http protocol
 app.post('/update-setup', protocols.updateSetup)
 
-// request the test mode on mqtt for a sensor
-app.post('/test-mqtt', protocols.testMqtt)
 
 // listening on http
 app.listen(portHttp, host, ()=>{

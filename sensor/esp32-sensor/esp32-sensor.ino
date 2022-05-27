@@ -24,11 +24,10 @@ StaticJsonDocument<capacity> docT;
 
 
 // Testing ping variable, if true, the board is in ping RTT test time
-bool testingPing=false;
+bool testingPing = false;
 
 // looping variable in order to make synchronous the protocol for RTT testing
-bool looping=true;
-
+bool looping = true;
 
 //Declare our CoAP client and the packet handler
 Thing::CoAP::Server server;
@@ -83,14 +82,11 @@ const char *topic_receive_setup = "sensor/1175/setup";
 // ping for time delay computation
 const char *topic_receive_ping = "sensor/1175/ping";
 
-
+// switch topics
 const char *topic_topic_switch = "sensor/1175/switch";//manda id, ip e protocollo 0 mqtt 1 per coap
-
 const char *topic_req_switch = "sensor/1175/switchRequest"; // richiesta di switching di protocollo
 
-
-
-
+// test topics
 const char *topic_receive_RTT = "sensor/1175/test-mqtt";
 const char *topic_send_RTT_result = "sensor/1175/test-mqtt-res";
 
@@ -148,24 +144,25 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
   if(!strcmp(topic,topic_receive_ping)){
      unsigned long overall_time = millis()-previousTime;
      Serial.println("------- MQTT Overall time --------");
-     Serial.println(overall_time);
+     Serial.print(overall_time);
      Serial.println(" ms");
      sumTime += overall_time; // differences with timestamp on the sum for the mean value
      Serial.println("-------- MQTT Average time in ms --------");
      avg = sumTime/timeCounter; // average value and intermediate result
      timeCounter += 1; // counter of iteration
-     Serial.println(avg);
+     Serial.print(avg);
      Serial.println(" ms");
      looping = true; // update looping status
   }
 
-  if(!strcmp(topic,topic_receive_RTT)){ // da fare check id
-       for (int i = 0; i < length; i++) {
+  if(!strcmp(topic,topic_receive_RTT)){ // TODO: Manage id
+     for (int i = 0; i < length; i++) {
      bufferfreq[i]=(char) payload[i];
-      }
-       char arr[id.length() + 1]; 
+     }
+     char arr[id.length() + 1]; 
  
-    strcpy(arr, id.c_str()); 
+     strcpy(arr, id.c_str()); // TODO: Remove it, no reference condition 
+    
      if(!strcmp(bufferfreq,arr)){
           testingPing =! testingPing;
           Serial.println("--------------------------------------------------");
@@ -178,6 +175,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
           previousTime = 0;
           temp = previous_prot;
       }
+      
       looping=true;
   }
 
@@ -196,22 +194,21 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       int minGas = setupJ["minGas"];
       int maxGas = setupJ["maxGas"];
       
-      Serial.print(sampleFrequency);
       // check missing data
       if(sampleFrequency != -1){
-        Serial.print("Setup SAMPLE_FREQUENCY at:");
+        Serial.print("Setup SAMPLE_FREQUENCY at: ");
         Serial.println(sampleFrequency);
          SAMPLE_FREQUENCY = sampleFrequency;
       }
 
       if(minGas != -1){
-        Serial.print("Setup MIN_GAS_VALUE at:");
+        Serial.print("Setup MIN_GAS_VALUE at: ");
         Serial.println(maxGas);
         MIN_GAS_VALUE = minGas;   
       }
 
       if(maxGas != -1){
-        Serial.print("Setup MAX_GAS_VALUE at:");
+        Serial.print("Setup MAX_GAS_VALUE at: ");
         Serial.println(maxGas);
         MAX_GAS_VALUE = maxGas; 
       }
