@@ -20,6 +20,9 @@ StaticJsonDocument<capacity> doc;
 // json for switching protocol
 StaticJsonDocument<capacity> docp;
 
+StaticJsonDocument<capacity> docT;
+
+
 // Testing ping variable, if true, the board is in ping RTT test time
 bool testingPing=false;
 
@@ -32,7 +35,7 @@ Thing::CoAP::Server server;
 Thing::CoAP::ESP::UDPPacketProvider udpProvider;
 
 // setting metadata
-long int SAMPLE_FREQUENCY = 2000;
+long int SAMPLE_FREQUENCY = 10000;
 int MIN_GAS_VALUE = 4095;
 int MAX_GAS_VALUE = 500;
 
@@ -60,10 +63,10 @@ char previous_prot = '1';
 char temp;
 
 // WiFi Data
-//const char *ssid = "iPhone"; // Warning: enter your WiFi name
-//const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+const char *ssid = "iPhone"; // Warning: enter your WiFi name
+const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
@@ -156,17 +159,26 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
      looping=true;
   }
 
-  if(!strcmp(topic,topic_receive_RTT)){
-    testingPing =! testingPing;
-    Serial.println("--------------------------------------------------");
-    Serial.print("MQTT Ping testing phase has switched to: ");
-    Serial.println(testingPing);
-    Serial.println("--------------------------------------------------");
-    timeCounter = 1;
-    avg = 0;
-    sumTime = 0;
-    previousTime = 0;
-    temp = previous_prot;
+  if(!strcmp(topic,topic_receive_RTT)){ // da fare check id
+       for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+      }
+       char arr[id.length() + 1]; 
+ 
+    strcpy(arr, id.c_str()); 
+     if(!strcmp(bufferfreq,arr)){
+          testingPing =! testingPing;
+          Serial.println("--------------------------------------------------");
+          Serial.print("MQTT Ping testing phase has switched to: ");
+          Serial.println(testingPing);
+          Serial.println("--------------------------------------------------");
+          timeCounter = 1;
+          avg = 0;
+          sumTime = 0;
+          previousTime = 0;
+          temp = previous_prot;
+      }
+      looping=true;
   }
 
 
@@ -373,6 +385,9 @@ void loop() {
     previousTime = 0;
     temp = previous_prot;
     
+  }else if (temp=='s'){ //hard stopping of the testing protocol
+    testingPing=false;
+    looping=true;
   }
 
   if(timeCounter>10&&testingPing){
@@ -381,8 +396,11 @@ void loop() {
     Serial.println("testing completed with avg RTT resulting time of: ");
     Serial.print(avg);
     Serial.println("ms");
-    char buffer_avg[sizeof(avg)];
-    snprintf(buffer_avg, sizeof buffer_avg, "%lf", avg);
+    char buffer_avg[sizeof(docT)];
+
+    docT["id"]=id;
+    docT["time"]= avg;
+    serializeJson(docT, buffer_avg);
     client.publish(topic_send_RTT_result, buffer_avg,2);
     
     Serial.println("--------------------------------------------------");
@@ -473,8 +491,7 @@ void loop() {
       Serial.println("/10");
       client.publish(topic_receive_ping, buffer_ff,0);
     }
-    //if(testingPing)client.publish(topic_receive_ping, buffer_ff,1);
-    //if(testingPing)client.publish(topic_receive_ping, buffer_ff,2);
+
   } else if(prot_mode == '2'){
     if(previous_prot!='2') timeCounter=1;
     if(!testingPing) Serial.println("Protocol: CoAP");
