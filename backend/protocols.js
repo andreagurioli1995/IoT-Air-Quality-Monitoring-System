@@ -22,10 +22,6 @@ const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
 // session sensors
 var sensors = []
 
-// Test Data
-var testsMqtt = {} // id : time 
-var testsCoap = {} // id : time
-
 // Influx Data
 const InfluxData = {
   token: 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
@@ -40,7 +36,6 @@ const InfluxData = {
     gas: 'gas',
   },
 }
-
 
 // ---------- Functions for MQTT -----------
 
@@ -78,21 +73,25 @@ init = () => {
   client.on('message', (topic, payload) => {
 
     if (topic == topicMqtt) {
+      console.log('MQTT: Trigger message on ' + topicMqtt)
       data = JSON.parse(payload.toString()) // stringify is used for different encoding string
       processJSON(data, 'MQTT')
     }
 
     if(topic == consumerTestMqtt){
+      console.log('MQTT: Trigger message on ' + consumerTestMqtt)
       try{
         data = JSON.parse(payload.toString())
+        console.log(data)
+        for(let i = 0; i < sensors.length; i++){
+          if(sensors[i].id == data.id){
+            sensors[i].mqtt = data.time
+          }
+        }
       } catch(e){
-        //
+        console.log('Wrong formatting')
       }
-      console.log('\n\n\n\n\n\n\n')
-      console.log(data)
-      if(data.id != undefined && data.time != undefined){
-        testsMqtt[data.id + ""] = data.time
-      }
+
     }
 
   })
@@ -108,7 +107,6 @@ forwardData = (data) => {
     console.log('Error, no sensors connected.')
     return false
   }
-  // publish with QoS 1 for secure setup, possible propagation doesn't have effect on the runtime.
 
   client.publish(
     setupTopic,
@@ -128,11 +126,51 @@ forwardData = (data) => {
 // ---------- Functions for HTTP -----------
 
 /**
- * update (request, response) to setup minGas, maxGas, sampleFrequency and protocol 
+ * switchMode(request, response) modify the protocol mode on a specific sensor given by the request data
+ * @param request gives the input data for id, ip and protocol of the sensor
+ * @param response defines the response with the status of the operation
+ */
+const switchMode = (request, response) =>{
+   console.log('Invoke Switching Mode...')
+   response.json("")
+}
+
+
+/**
+ * testCoAP(request, response) active a request to test on CoAP for one of the connected sensor
+ * @param request gives the input data
+ * @param response defines the response with the test value on CoAP
+ */
+const testCoAP = (request, response) =>{
+   // TO-DO: testing CoAP
+   console.log('Invoking TestCoAP...')
+   response.json("")
+}
+
+
+/**
+ * testMQTT(request, response) active a request to test on MQTT for one of the connected sensor
+ * @param request gives the input data
+ * @param response defines the response status of the request, do not contains the response data
+ */
+const testMQTT = (request, response) =>{
+  console.log('----------------------------')
+  console.log('Sending Testing MQTT request on id: ' + request.body.id)
+  console.log('----------------------------')
+  client.publish(
+    producerTestMqtt,
+    request.body.id,
+    { qos: 2}
+    );
+}
+
+
+/**
+ * updateSetup(request, response) to setup minGas, maxGas, sampleFrequency and protocol 
  * @param request gives the input data
  * @param response defines the response status
  */
-updateSetup = (request, response) => {
+const updateSetup = (request, response) => {
   console.log('HTTP: Update data received...')
   console.log('-----------------------------')
   
@@ -159,8 +197,6 @@ updateSetup = (request, response) => {
   }
 
   else {
-
-
 
     if (data.minGas != undefined && data.minGas != null) {
       console.log('HTTP: Received MIN_GAS_VALUE from the dashboard: ' + data.maxGas)
@@ -196,7 +232,7 @@ updateSetup = (request, response) => {
  * @param request is not considered
  * @param response is the json of sensors 
  */
- getSensorData = (request, response) => {
+const getSensorData = (request, response) => {
   response.json(sensors) 
 }
 
@@ -208,7 +244,7 @@ updateSetup = (request, response) => {
  * @param data is data given by the sensor
  * @param protocol is the protocol used to the sensor
  */
-function processJSON(data, protocol) {
+const processJSON = (data, protocol) => {
 
   if (data['id'] != undefined && data['id'] != null) {
     if(!checkId(data['id'])){
@@ -219,11 +255,11 @@ function processJSON(data, protocol) {
         coap : "",
         protocol: 0,
       })
-      console.log('Sending ' + data['id'] + 'on ' + producerTestMqtt)
+      console.log('Sending ' + data['id'] + ' on ' + producerTestMqtt)
       client.publish(
         producerTestMqtt,
-        data['id'] + "",
-        { qos: 2, retain: true }
+        data['id'],
+        { qos: 2}
         );
     }
   }
@@ -258,12 +294,12 @@ function processJSON(data, protocol) {
 
 // --------- Utils ----------
 
-/**
+/*+
  * checkId(id) checks if an id is present in the session sensor collection
  * @param id to trigger
  * @return true if it is included, false otherwise
  */
-checkId = (id) =>{
+const checkId = (id) =>{
   included = false
   sensors.forEach((value, index) =>{
     if (value.id == id){
@@ -280,5 +316,8 @@ module.exports = {
   processJSON,
   forwardData,
   getSensorData,
+  switchMode,
+  testMQTT,
+  testCoAP,
   init,
 }

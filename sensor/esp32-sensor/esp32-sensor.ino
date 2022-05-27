@@ -155,13 +155,14 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
      looping = true; // update looping status
   }
 
-  if(!strcmp(topic,topic_receive_RTT)){ // TODO: Manage id
-     for (int i = 0; i < length; i++) {
+  if(!strcmp(topic,topic_receive_RTT)){ 
+     for (int i = 0; i < id.length()+1; i++) {
      bufferfreq[i]=(char) payload[i];
      }
      char arr[id.length() + 1]; 
  
-     strcpy(arr, id.c_str()); // TODO: Remove it, no reference condition 
+     strcpy(arr, id.c_str()); 
+     Serial.println("---------------");
     
      if(!strcmp(bufferfreq,arr)){
           testingPing =! testingPing;

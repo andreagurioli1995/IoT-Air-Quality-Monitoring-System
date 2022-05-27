@@ -239,14 +239,14 @@
                     <div class="col">
                         <label class="sr-only" for="sensor-id">Sensor ID:</label>
                         <div class="input-group mb-2">
-                            <input type="text" class="form-control" id="sensor-id" name="id"
-                                placeholder="Sensor ID" required>
+                            <input type="text" class="form-control" id="sensor-id" name="id" placeholder="Sensor ID"
+                                required>
                         </div>
                     </div>
                     <div class="col">
                         <label class="sr-only" for="min-gas">Min. Gas Value</label>
                         <div class="input-group mb-2">
-                            <input type="text" class="form-control" id="min-gas"  name="minGas"
+                            <input type="text" class="form-control" id="min-gas" name="minGas"
                                 placeholder="Min. Gas Value">
                             <div class="input-group-prepend">
                                 <div class="input-group-text">ppfd</div>
@@ -256,7 +256,7 @@
                     <div class="col">
                         <label class="sr-only" for="max-gas">Max. Gas. Value</label>
                         <div class="input-group mb-2">
-                            <input type="text" class="form-control" id="max-gas"  name="maxGas"
+                            <input type="text" class="form-control" id="max-gas" name="maxGas"
                                 placeholder="Max. Gas. Value">
                             <div class="input-group-prepend">
                                 <div class="input-group-text">ppfd</div>
@@ -266,10 +266,10 @@
                     <div class="col">
                         <label class="sr-only" for="Sample-frequency">Sample Frequency</label>
                         <div class="input-group mb-2">
-                            <input type="text" class="form-control"  id="sample-frequency"
-                                name="sampleFrequency" placeholder="Sample Frequency">
+                            <input type="text" class="form-control" id="sample-frequency" name="sampleFrequency"
+                                placeholder="Sample Frequency">
                             <div class="input-group-prepend">
-                                <div class="input-group-text">sec</div>
+                                <div class="input-group-text">msec</div>
                             </div>
                         </div>
                     </div>
@@ -289,10 +289,11 @@
                             <tr>
                                 <th scope="col">#</th>
                                 <th scope="col">Sensor ID</th>
-                                <th scope="col">Test MQTT</th>
-                                <th scope="col">Test CoAP</th>
+                                <th scope="col">Performance</th>
+                                <th scope="col">Protocol</th>
                                 <th scope="col">IP</th>
-                                <th scope="col">Action</th>
+                                <th scope="col">Testing</th>
+                                <th scope="col">Switch</th>
                             </tr>
                         </thead>
                         <tbody id="tbody">
@@ -353,51 +354,122 @@
                 let tr = document.createElement('tr')
                 let th = document.createElement('th')
                 let td = document.createElement('td')
-                let tdMqtt = document.createElement('td')
-                let tdCoap = document.createElement('td')
+                let tdTest = document.createElement('td')
+                let tdProt = document.createElement('td')
                 let tdIp = document.createElement('td')
                 let tdAct = document.createElement('td')
-                tdCoap.setAttribute('id', "coap-" + id)
-                tdMqtt.setAttribute('id', "mqtt-" + id)
+                let tdSwitch = document.createElement('td')
+                tdProt.setAttribute('id', "coap-" + id)
+                tdTest.setAttribute('id', "test-" + id)
                 th.setAttribute('scope', 'row')
                 th.innerHTML = i
                 td.innerHTML = id
                 tdIp.innerHTML = data[i].ip
-                if (data[i].mqtt == undefined || data[i].mqtt == null || data[i].mqtt == "") {
-                    tdMqtt.innerHTML = " - "
+                if (data[i].protocol == 0) {
+                    if (data[i].mqtt == undefined || data[i].mqtt == null || data[i].mqtt == "") {
+                        tdTest.innerHTML = " - "
+                    } else {
+                        tdTest.innerHTML = data[i].mqtt + " ms"
+                    }
                 } else {
-                    tdMqtt.innerHTML = data[i].mqtt + " ms"
+                    if (data[i].coap == undefined || data[i].coap == null || data[i].coap == "") {
+                        tdTest.innerHTML = " - "
+                    } else {
+                        console.log('Adding elements on TestCoap')
+                        tdTest.innerHTML = data[i].coap + " ms"
+                    }
                 }
 
-                if (data[i].coap == undefined || data[i].coap == null || data[i].coap == "") {
-                    tdCoap.innerHTML = " - "
+                if(data[i].protocol == 0){
+                    tdProt.innerHTML = "MQTT"
                 } else {
-                    console.log('Adding elements on TestCoap')
-                    tdCoap.innerHTML = data[i].coap + " ms"
+                    tdProt.innerHTML = "CoAP"
                 }
 
                 let button = document.createElement('button')
                 button.setAttribute('class', 'btn btn-danger mb-2')
-                if(data[i].protocol == 0){
+                if (data[i].protocol == 0) {
                     // mqtt
                     button.innerHTML = "Test MQTT"
-                    button.addEventListener('click', (e)=>{
-                        
+                    button.addEventListener('click', (e) => {
+                        jsonData = {
+                            id: data[i].id, // no need IP
+                        }
+                        $.ajax({
+                            type: 'POST',
+                            url: '/test-mqtt',
+                            data: JSON.stringify(jsonData),
+                            contentType: "application/json; charset=utf-8",
+                            traditional: true,
+                            success: function (data) {
+                                // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                                // after that get the content and updates rows of the table
+                            }
+                        });
+
                     })
                 } else {
                     // coap
                     button.innerHTML = "Test CoAP"
-                    button.addEventListener('click', (e)=>{
-
+                    button.addEventListener('click', (e) => {
+                        jsonData = {
+                            id: data[i].id, 
+                            ip: data[i].ip,
+                        }
+                        $.ajax({
+                            type: 'POST',
+                            url: '/test-coap',
+                            data: JSON.stringify(jsonData),
+                            contentType: "application/json; charset=utf-8",
+                            traditional: true,
+                            success: function (data) {
+                                // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                                // after that get the content and updates rows of the table
+                                
+                            }
+                        });
                     })
                 }
+
+                let switchButton = document.createElement('button')
+                switchButton.setAttribute('class', 'btn btn-danger mb-2')
+                if(data[i].protocol == 0){
+                    switchButton.innerHTML ="Switch CoAP"
+                } else {
+                    switchButton.innerHTML = "Switch MQTT"
+                }
+
+                switchButton.addEventListener('click', (e)=>{
+                    // To-DO: Switching mode
+                    jsonData = {
+                            id: data[i].id,
+                            ip: data[i].ip,
+                            protocol: data[i].protocol,
+                        }
+                        $.ajax({
+                            type: 'POST',
+                            url: '/switch-mode',
+                            data: JSON.stringify(jsonData),
+                            contentType: "application/json; charset=utf-8",
+                            traditional: true,
+                            success: function (data) {
+                                // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                                // after that get the content and updates rows of the table
+                            }
+                        });
+
+                })
+
+
                 tdAct.appendChild(button)
+                tdSwitch.appendChild(switchButton)
                 tr.appendChild(th)
                 tr.appendChild(td)
-                tr.appendChild(tdMqtt)
-                tr.appendChild(tdCoap)
+                tr.appendChild(tdTest)
+                tr.appendChild(tdProt)
                 tr.appendChild(tdIp)
                 tr.appendChild(tdAct)
+                tr.appendChild(tdSwitch)
                 tr.setAttribute('id', data[i].id)
                 tBody.appendChild(tr)
             }
@@ -426,8 +498,8 @@
                 sampleFrequency: _sampleFrequency,
             }
 
-            if ((Number.isInteger(_sampleFrequency) || _sampleFrequency == "") && (Number.isInteger(_minGas) || _minGas == "")
-                && (Number.isInteger(_maxGas) || _maxGas == "") && id != "") {
+            if ((!isNaN(_sampleFrequency) || _sampleFrequency == "") && (!isNaN(_minGas) || _minGas == "")
+                && (!isNaN(_maxGas) || _maxGas == "") && _id != "") {
                 $.ajax({
                     type: 'POST',
                     url: '/update-setup',
@@ -451,6 +523,10 @@
                     }
                 });
             } else {
+                console.log(_sampleFrequency)
+                console.log(_maxGas)
+                console.log(_minGas)
+                console.log(_id)
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
