@@ -357,6 +357,7 @@
                 td.innerHTML = id
                 if(data.testMqtt[id] == undefined || data.testMqtt[id] == null){
                     let buttonMqtt = document.createElement('button')
+                    buttonMqtt.innerHTML = "Test MQTT"
                     buttonMqtt.addEventListener('click', (e) =>{
                         // TODO: Check it on proxy
                     })

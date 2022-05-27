@@ -63,10 +63,10 @@ char previous_prot = '1';
 char temp;
 
 // WiFi Data
-const char *ssid = "iPhone"; // Warning: enter your WiFi name
-const char *password = "19951995";  // Warning: enter WiFi password
-//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+// const char *ssid = "iPhone"; // Warning: enter your WiFi name
+// const char *password = "19951995";  // Warning: enter WiFi password
+const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
@@ -122,10 +122,8 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  Serial.println(topic);
  char bufferfreq[length];
 
-
-
-
-//handling the request for switching the protocol
+// TO-DO: Check IDs on topics related to your own!
+// handling the request for switching the protocol
   if(!strcmp(topic,topic_req_switch )){
      for (int i = 0; i < length; i++) {
      bufferfreq[i]=(char) payload[i];
@@ -151,12 +149,14 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
      unsigned long overall_time = millis()-previousTime;
      Serial.println("------- MQTT Overall time --------");
      Serial.println(overall_time);
-     sumTime+=overall_time;
+     Serial.println(" ms");
+     sumTime += overall_time; // differences with timestamp on the sum for the mean value
      Serial.println("-------- MQTT Average time in ms --------");
-     avg=sumTime/timeCounter;
-     timeCounter+=1;
+     avg = sumTime/timeCounter; // average value and intermediate result
+     timeCounter += 1; // counter of iteration
      Serial.println(avg);
-     looping=true;
+     Serial.println(" ms");
+     looping = true; // update looping status
   }
 
   if(!strcmp(topic,topic_receive_RTT)){ // da fare check id
@@ -170,7 +170,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
           testingPing =! testingPing;
           Serial.println("--------------------------------------------------");
           Serial.print("MQTT Ping testing phase has switched to: ");
-          Serial.println(testingPing);
+          Serial.println(testingPing); // testing mode chosen 0 for MQTT and 1 for CoAP
           Serial.println("--------------------------------------------------");
           timeCounter = 1;
           avg = 0;
@@ -240,12 +240,12 @@ void MQTTSetup(){
      Serial.printf("The client %s connects to the public mqtt broker\n", id.c_str());
      if (client.connect(id.c_str(), mqtt_username, mqtt_password)) {
          Serial.println("Public emqx mqtt broker connected");
-         client.subscribe(topic_receive_setup);
-         //ping subscribe for protocol evaluation
-         client.subscribe(topic_receive_ping);
-          //subscribe for mqtt external testing RTT
-         client.subscribe(topic_receive_RTT);
-         client.subscribe(topic_req_switch);
+         client.subscribe(topic_receive_setup); // setup topic
+         // Ping subscribe for protocol evaluation
+         client.subscribe(topic_receive_ping); // ping
+          // Subscribe for mqtt external testing RTT
+         client.subscribe(topic_receive_RTT); // RTT testing (auto-loop)
+         client.subscribe(topic_req_switch); // switch mode 
          
      } else {
          // connection error handler
@@ -269,17 +269,13 @@ void CoAPSetup(){
        char buffer_ff[sizeof(doc)];
       serializeJson(doc, buffer_ff);
 
-
        //Return the current state of our data
       return Thing::CoAP::Status::Content(buffer_ff);
     });
 
-
       server.CreateResource("test", Thing::CoAP::ContentFormat::TextPlain, true) //True means that this resource is observable
     .OnGet([](Thing::CoAP::Request & request) { //We are here configuring telling our server that, when we receive a "GET" request to this endpoint, run the the following code
       Serial.println("GET Request received for endpoint 'data'");
-
-
 
        //Return the current state of our data
       return Thing::CoAP::Status::Content("200");
@@ -347,14 +343,9 @@ void loop() {
   if(temp=='1'|| temp=='2' || temp=='3'){
     previous_prot = prot_mode;
     prot_mode = temp;
-
-
   
     // preparing buffers for String conversation
     char buffer_dt[sizeof(docp)];
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     
     if(temp=='1'){
       docp["id"] = id;
@@ -370,11 +361,8 @@ void loop() {
       client.publish(topic_topic_switch, buffer_dt,2);
     }
 
-
-    
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  }else if(temp=='t'){
-    testingPing=!testingPing;
+  }else if(temp == 't'){ // starting testing 
+    testingPing = !testingPing; // change at not
     Serial.println("--------------------------------------------------");
     Serial.print("Ping testing phase has switched to: ");
     Serial.println(testingPing);
@@ -386,16 +374,16 @@ void loop() {
     temp = previous_prot;
     
   }else if (temp=='s'){ //hard stopping of the testing protocol
-    testingPing=false;
-    looping=true;
+    testingPing = false;
+    looping = true;
   }
 
   if(timeCounter>10&&testingPing){
     testingPing=false;
     Serial.println("--------------------------------------------------");
-    Serial.println("testing completed with avg RTT resulting time of: ");
+    Serial.println("Testing completed with average RTT resulting time of: ");
     Serial.print(avg);
-    Serial.println("ms");
+    Serial.println(" ms");
     char buffer_avg[sizeof(docT)];
 
     docT["id"]=id;
