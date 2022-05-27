@@ -45,6 +45,13 @@
         text-decoration: none
     }
 
+    .btn-danger {
+        background-color: #8c0c0c;
+        border-color: #8c0c0c;
+        color: white;
+
+    }
+    
     .header {
         width: 100%;
         height: var(--header-height);
@@ -280,6 +287,8 @@
                             <tr>
                                 <th scope="col">#</th>
                                 <th scope="col">Sensor ID</th>
+                                <th scope="col">Test MQTT</th>
+                                <th scope="col">Test CoAP</th>
                             </tr>
                         </thead>
                         <tbody id="tbody">
@@ -294,7 +303,6 @@
     <!--Container Main end-->
     <script type="text/javascript">
 
-        var ids = []
         document.addEventListener("DOMContentLoaded", function (event) {
             const showNavbar = (toggleId, navId, bodyId, headerId) => {
                 const toggle = document.getElementById(toggleId),
@@ -331,32 +339,57 @@
             let length = data.id.length
             let tBody = document.getElementById('tbody')
             let child = tBody.lastElementChild;
+            console.log('Length: ' + length)
+            console.log(data.id)
             while (child) {
                 tBody.removeChild(child);
                 child = tBody.lastElementChild;
             }
-            let j = 1
             for (let i = 0; i < length; i++) {
+                let id = data.id[i]
                 let tr = document.createElement('tr')
                 let th = document.createElement('th')
                 let td = document.createElement('td')
+                let tdMqtt = document.createElement('td')
+                let tdCoap = document.createElement('td')
                 th.setAttribute('scope', 'row')
-                th.innerHTML = j
-                td.innerHTML = data.id[i]
+                th.innerHTML = i
+                td.innerHTML = id
+                if(data.testMqtt[id] == undefined || data.testMqtt[id] == null){
+                    let buttonMqtt = document.createElement('button')
+                    buttonMqtt.addEventListener('click', (e) =>{
+                        // TODO: Check it on proxy
+                    })
+                    buttonMqtt.setAttribute('class', "btn btn-danger mb-1")
+                    tdMqtt.appendChild(buttonMqtt)
+                } else {
+                    tdMqtt.innerHTML = data.testMqtt[id] + ""
+                }
+
+                if(data.testCoap[id] == undefined || data.testCoap[id] == null){
+                    let buttonCoap = document.createElement('button')
+                    buttonCoap.setAttribute('class', "btn btn-danger mb-1")
+                    buttonCoap.innerHTML = "Test CoAP"
+                    buttonCoap.addEventListener('click', (e) =>{
+                        // TODO: Check it on proxy
+                    })
+                    tdCoap.appendChild(buttonCoap)
+                } else {
+                    console.log('Adding elements on TestCoap')
+                    tdCoap.innerHTML = data.testCoap[id] + ""
+                }
                 tr.appendChild(th)
                 tr.appendChild(td)
+                tr.appendChild(tdMqtt)
+                tr.appendChild(tdCoap)
                 tBody.appendChild(tr)
-                ids.push(data.id[i])
-                j = j + 1
             }
         }
 
         const updateButton = document.getElementById('update-button');
         updateButton.addEventListener('click', (e) => {
-            $.get("getIDs", function (data) {
-                console.log("Data: ");
-                console.log(data)
-                addRow(data)
+            $.get("get-sensor-data", function (data) {
+                addRow(data) 
             });
         })
 

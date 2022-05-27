@@ -1,3 +1,4 @@
+const { json } = require('express/lib/response')
 const mqtt = require('mqtt')
 const influx = require('../influxdb/InfluxManager')
 
@@ -12,8 +13,16 @@ const connectUrl = `mqtt://${hostMqtt}:${portMqtt}` // url for connection
 
 // connection on Mosquitto broker
 var client = null
+const setupTopic =  "sensor/1175/setup"
 const topicMqtt = 'sensor/1175/data'
+const producerTestMqtt = 'sensor/1175/test-mqtt'
+const consumerTestMqtt = 'sensor/1175/test-mqtt-res'
 const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
+
+
+// Test Data
+var testsMqtt = {} // id : time 
+var testsCoap = {} // id : time
 
 // Influx Data
 const InfluxData = {
@@ -54,7 +63,8 @@ init = () => {
     console.log('---------------------')
     console.log('MQTT Subscriptions: ')
     try {
-      client.subscribe(topicMqtt)
+      client.subscribe(topicMqtt) // 
+      client.subscribe(consumerTestMqtt) // for testing mode on MQTT sensors receiving the response
     } catch (e) {
       console.log('MQTT Error: ' + e)
     }
@@ -64,16 +74,30 @@ init = () => {
 
 
   client.on('message', (topic, payload) => {
-    supported = false
+
     if (topic == topicMqtt) {
-      supported = true
-    }
-    if (supported) {
       data = JSON.parse(payload.toString()) // stringify is used for different encoding string
       processJSON(data, 'MQTT')
     }
+
+    if(topic == consumerTestMqtt){
+      try{
+        data = JSON.parse(payload.toString())
+      } catch(e){
+        //
+      }
+      
+      console.log(data)
+      if(data.id != undefined && data.time != undefined){
+        testsMqtt[data.id + ""] = data.time
+      }
+    }
+
   })
 }
+
+
+
 
 forwardData = (data) => {
   if (client == null) {
@@ -82,7 +106,7 @@ forwardData = (data) => {
   // publish with QoS 1 for secure setup, possible propagation doesn't have effect on the runtime.
 
   client.publish(
-    "sensor/1175/setup",
+    setupTopic,
     JSON.stringify(data),
     { qos: 1, retain: true },
     (e) => {
@@ -95,6 +119,7 @@ forwardData = (data) => {
     })
   return true;
 }
+
 
 
 
@@ -155,6 +180,16 @@ updateSetup = (request, response) => {
 
 }
 
+const testMqtt = (request, response) =>{
+
+  id = request.body.id; // id of sensor
+  if(id != undefined && testsMqtt[id] != undefined || testsMqtt[id] != null){
+      response.json({status: "done", value : testsMqtt[id]})
+  } else {
+    response.json({status : "pending"})
+  }
+}
+
 // ------ Common MQTT and CoAP functions --------
 
 function processJSON(data, protocol) {
@@ -202,15 +237,17 @@ function processJSON(data, protocol) {
 }
 
 // --------- Utils ----------
-getIDs = (request, response) => {
-  jsonIDs = { id: idValues }
-  response.json(jsonIDs)
+
+getSensorData = (request, response) => {
+  var json = { id: idValues, testMqtt : testsMqtt, testCoap : testsCoap }
+  response.json(json) 
 }
 
 // utils functions to update the current id
 addId = (id) => {
   if (!idValues.includes(id)) {
     idValues.push(id)
+    client.publish(producerTestMqtt, id + "", {QoS: 2, retain: false}) // start MQTT test
   }
 }
 
@@ -218,7 +255,8 @@ module.exports = {
   updateSetup,
   processJSON,
   forwardData,
+  getSensorData,
+  testMqtt,
   addId,
-  getIDs,
   init,
 }
