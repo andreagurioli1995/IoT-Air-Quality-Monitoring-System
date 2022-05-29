@@ -17,6 +17,7 @@ const setupTopic =  "sensor/1175/setup"
 const topicMqtt = 'sensor/1175/data'
 const producerTestMqtt = 'sensor/1175/test-mqtt'
 const consumerTestMqtt = 'sensor/1175/test-mqtt-res'
+const switchTopic = "sensor/1175/switchRequest"
 const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
 
 // session sensors
@@ -111,7 +112,7 @@ forwardData = (data) => {
   client.publish(
     setupTopic,
     JSON.stringify(data),
-    { qos: 1, retain: true },
+    {qos: 1, retain: true },
     (e) => {
       if (e) {
         return false;
@@ -132,7 +133,53 @@ forwardData = (data) => {
  */
 const switchMode = (request, response) =>{
    console.log('Invoke Switching Mode...')
-   response.json("")
+   let idBody = request.body.id
+   let protocolBody = request.body.protocol
+   let ipBody = request.body.ip
+   
+   if (protocolBody == 0 || protocolBody == 1){
+     var switched;
+     if(protocolBody == 0){
+      switched = 1
+     } else {
+       switched = 0
+     }
+
+     // get data from the body
+     let json = {
+       id: idBody,
+       ip : ipBody,
+       protocol : switched
+     }
+
+     // publish data on sensors network
+     client.publish(switchTopic, JSON.stringify(json), {qos : 1}, (e)=>{
+       if(e){
+         console.log('Error during publishing on ' + switchTopic)
+       } else {
+         console.log('Publish successful on ' + switchTopic)
+       }
+     })
+   } else {
+     console.log('Switch Mode: Error, protocol value are not acceptable.')
+     response.status(500).json("")
+   }
+   
+   // prepare response to update the front-end status
+   let responseJson = {
+     id : idBody,
+     ip : ipBody,
+     protocol : switched
+   }
+   // update sensor session data
+   for(let i = 0; i < sensors.length; i++){
+     if(sensors[i].id == idBody){
+       sensors[i].protocol = switched
+       break
+     }
+   }
+   // send response
+   response.status(200).json(JSON.stringify(responseJson))
 }
 
 

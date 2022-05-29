@@ -340,6 +340,43 @@
             linkColor.forEach(l => l.addEventListener('click', colorLink))
         });
 
+        const testCoap = (e) => {
+            jsonData = {
+                id: data[i].id,
+                ip: data[i].ip,
+            }
+            $.ajax({
+                type: 'POST',
+                url: '/test-coap',
+                data: JSON.stringify(jsonData),
+                contentType: "application/json; charset=utf-8",
+                traditional: true,
+                success: function (data) {
+                    // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                    // after that get the content and updates rows of the table
+
+                }
+            });
+        }
+
+        const testMqtt = (e) => {
+            jsonData = {
+                id: data[i].id, // no need IP
+            }
+            $.ajax({
+                type: 'POST',
+                url: '/test-mqtt',
+                data: JSON.stringify(jsonData),
+                contentType: "application/json; charset=utf-8",
+                traditional: true,
+                success: function (data) {
+                    // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                    // after that get the content and updates rows of the table
+                }
+            });
+
+        }
+
         const addRow = (data) => {
             let length = data.length
             let tBody = document.getElementById('tbody')
@@ -359,7 +396,7 @@
                 let tdIp = document.createElement('td')
                 let tdAct = document.createElement('td')
                 let tdSwitch = document.createElement('td')
-                tdProt.setAttribute('id', "coap-" + id)
+                tdProt.setAttribute('id', "prot-" + id)
                 tdTest.setAttribute('id', "test-" + id)
                 th.setAttribute('scope', 'row')
                 th.innerHTML = i
@@ -380,7 +417,7 @@
                     }
                 }
 
-                if(data[i].protocol == 0){
+                if (data[i].protocol == 0) {
                     tdProt.innerHTML = "MQTT"
                 } else {
                     tdProt.innerHTML = "CoAP"
@@ -388,6 +425,7 @@
 
                 let button = document.createElement('button')
                 button.setAttribute('class', 'btn btn-danger mb-2')
+                button.setAttribute('id', 'test-btn-' + data[i].id)
                 if (data[i].protocol == 0) {
                     // mqtt
                     button.innerHTML = "Test MQTT"
@@ -413,7 +451,7 @@
                     button.innerHTML = "Test CoAP"
                     button.addEventListener('click', (e) => {
                         jsonData = {
-                            id: data[i].id, 
+                            id: data[i].id,
                             ip: data[i].ip,
                         }
                         $.ajax({
@@ -425,7 +463,7 @@
                             success: function (data) {
                                 // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
                                 // after that get the content and updates rows of the table
-                                
+
                             }
                         });
                     })
@@ -433,36 +471,96 @@
 
                 let switchButton = document.createElement('button')
                 switchButton.setAttribute('class', 'btn btn-danger mb-2')
-                if(data[i].protocol == 0){
-                    switchButton.innerHTML ="Switch CoAP"
+                switchButton.setAttribute('id', 'switch-btn-' + data[i].id)
+                if (data[i].protocol == 0) {
+                    switchButton.innerHTML = "Switch CoAP"
                 } else {
                     switchButton.innerHTML = "Switch MQTT"
                 }
 
-                switchButton.addEventListener('click', (e)=>{
+                switchButton.addEventListener('click', (e) => {
                     // To-DO: Switching mode
                     jsonData = {
-                            id: data[i].id,
-                            ip: data[i].ip,
-                            protocol: data[i].protocol,
-                        }
-                        $.ajax({
-                            type: 'POST',
-                            url: '/switch-mode',
-                            data: JSON.stringify(jsonData),
-                            contentType: "application/json; charset=utf-8",
-                            traditional: true,
-                            success: function (data) {
-                                // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
-                                // after that get the content and updates rows of the table
+                        id: data[i].id,
+                        ip: data[i].ip,
+                        protocol: data[i].protocol,
+                    }
+                    $.ajax({
+                        type: 'POST',
+                        url: '/switch-mode',
+                        data: JSON.stringify(jsonData),
+                        contentType: "application/json; charset=utf-8",
+                        traditional: true,
+                        success: function (data) {
+                            // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                            // after that get the content and updates rows of the table
+                            console.log('Protocol changed')
+                            console.log(data)
+                            data = JSON.parse(data)
+                            console.log('switch-btn-' + data.id)
+                            let switchButton = document.getElementById('switch-btn-' + data.id)
+                            let actButton = document.getElementById('test-btn-' + data.id)
+                            if (data.protocol == 0) {
+                                console.log('Switching to MQTT')
+                                switchButton.value = "Switch MQTT"
+                                actButton.value = "Test CoAP"
+                                actButton.addEventListener('click', (e) => {
+                                    jsonData = {
+                                        id: data.id,
+                                        ip: data.ip,
+                                    }
+                                    $.ajax({
+                                        type: 'POST',
+                                        url: '/test-coap',
+                                        data: JSON.stringify(jsonData),
+                                        contentType: "application/json; charset=utf-8",
+                                        traditional: true,
+                                        success: function (data) {
+                                            // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                                            // after that get the content and updates rows of the table
+
+                                        }
+                                    });
+                                })
+                            } else {
+                                console.log('Switching to CoAP')
+                                switchButton.value = "Switch CoAP"
+                                actButton.value = "Test MQTT"
+                                actButton.addEventListener('click', (e) => {
+                                    jsonData = {
+                                        id: data.id, // no need IP
+                                    }
+                                    $.ajax({
+                                        type: 'POST',
+                                        url: '/test-mqtt',
+                                        data: JSON.stringify(jsonData),
+                                        contentType: "application/json; charset=utf-8",
+                                        traditional: true,
+                                        success: function (data) {
+                                            // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
+                                            // after that get the content and updates rows of the table
+                                        }
+                                    });
+
+                                })
                             }
-                        });
+                            // update values
+                            $.get("get-sensor-data", function (data) {
+                                console.log(data)
+                                addRow(data)
+                            });
+
+
+                        }
+                    });
 
                 })
 
 
                 tdAct.appendChild(button)
+                tdAct.setAttribute('id', 'act-' + data[i].id)
                 tdSwitch.appendChild(switchButton)
+                tdSwitch.setAttribute('id', 'switch-' + data[i].id)
                 tr.appendChild(th)
                 tr.appendChild(td)
                 tr.appendChild(tdTest)
