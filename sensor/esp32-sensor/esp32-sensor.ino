@@ -62,10 +62,10 @@ char previous_prot = '1';
 char temp;
 
 // WiFi Data
-// const char *ssid = "iPhone"; // Warning: enter your WiFi name
-// const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+ const char *ssid = "iPhone"; // Warning: enter your WiFi name
+ const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
@@ -118,12 +118,18 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  Serial.println(topic);
  char bufferfreq[length];
 
+  //setting arr as char array for id comparison
+  char idChar[id.length()]; 
+  strcpy(idChar, id.c_str()); 
+
+  for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+   }
+
 // TO-DO: Check IDs on topics related to your own!
 // handling the request for switching the protocol
   if(!strcmp(topic,topic_req_switch )){
-     for (int i = 0; i < length; i++) {
-     bufferfreq[i]=(char) payload[i];
-      }
+
       int prot = atoi(bufferfreq);
       char buffer_dt[sizeof(docp)];  
       docp["id"] = id;
@@ -142,6 +148,13 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  
 
   if(!strcmp(topic,topic_receive_ping)){
+      StaticJsonDocument<capacity> docPing;
+      DeserializationError err = deserializeJson(docPing, bufferfreq);
+      
+    const char* tempId = docPing["id"];
+    Serial.println(tempId);
+    Serial.println(idChar);
+    if(tempId!=NULL&&!strcmp(tempId,idChar)){
      unsigned long overall_time = millis()-previousTime;
      Serial.println("------- MQTT Overall time --------");
      Serial.print(overall_time);
@@ -153,18 +166,28 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
      Serial.print(avg);
      Serial.println(" ms");
      looping = true; // update looping status
+    }
   }
 
   if(!strcmp(topic,topic_receive_RTT)){ 
-     for (int i = 0; i < id.length()+1; i++) {
-     bufferfreq[i]=(char) payload[i];
-     }
-     char arr[id.length() + 1]; 
- 
-     strcpy(arr, id.c_str()); 
+     StaticJsonDocument<capacity> docRTT;
+     DeserializationError err = deserializeJson(docRTT, bufferfreq);
+
+     Serial.println("---------------");
+     
+     Serial.println(idChar);
+         
+      
+    //const char* tempId = docRTT["id"];
+    String tempId = docRTT["id"];
+    Serial.println(tempId);
+
+
+      char idCharT[tempId.length()]; 
+      strcpy(idCharT, tempId.c_str()); 
      Serial.println("---------------");
     
-     if(!strcmp(bufferfreq,arr)){
+     if(!strcmp(idCharT,idChar)){
           testingPing =! testingPing;
           Serial.println("--------------------------------------------------");
           Serial.print("MQTT Ping testing phase has switched to: ");
@@ -183,9 +206,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
 
  if(!strcmp(topic,topic_receive_setup)){
    StaticJsonDocument<200> setupJ;
-   for (int i = 0; i < length; i++) {
-     bufferfreq[i]=(char) payload[i];
-      }
+
     
     DeserializationError err = deserializeJson(setupJ, bufferfreq);
     const char* tempId = setupJ["id"];
@@ -452,6 +473,7 @@ void loop() {
   doc["hum"] = humidity;
   doc["gasv"]["gas"] = gas;
   doc["gasv"]["AQI"] = AQI;
+  doc["samF"] = SAMPLE_FREQUENCY;
   doc["ip"]=WiFi.localIP();
 
 
