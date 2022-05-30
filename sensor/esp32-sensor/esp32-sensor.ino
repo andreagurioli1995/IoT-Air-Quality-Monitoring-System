@@ -499,7 +499,6 @@ void loop() {
 
   // verify protocol mode and execute the sending
   if (prot_mode == '1'){
-    if(previous_prot!='1') timeCounter=1;
     if(!testingPing) Serial.println("Protocol: MQTT");
     // mqtt publish
 
@@ -517,7 +516,6 @@ void loop() {
     }
 
   } else if(prot_mode == '2'){
-    if(previous_prot!='2') timeCounter=1;
     if(!testingPing) Serial.println("Protocol: CoAP"); 
     server.Process();  
     
