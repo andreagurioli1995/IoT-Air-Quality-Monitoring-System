@@ -62,10 +62,10 @@ char previous_prot = '1';
 char temp;
 
 // WiFi Data
-// const char *ssid = "iPhone"; // Warning: enter your WiFi name
-// const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+ const char *ssid = "iPhone"; // Warning: enter your WiFi name
+ const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
@@ -118,13 +118,30 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  Serial.println(topic);
  char bufferfreq[length];
 
+  //setting arr as char array for id comparison
+  char idChar[id.length()]; 
+  strcpy(idChar, id.c_str()); 
+
+  for (int i = 0; i < length; i++) {
+     bufferfreq[i]=(char) payload[i];
+   }
+
 // TO-DO: Check IDs on topics related to your own!
 // handling the request for switching the protocol
   if(!strcmp(topic,topic_req_switch )){
-     for (int i = 0; i < length; i++) {
-     bufferfreq[i]=(char) payload[i];
-      }
-      int prot = atoi(bufferfreq);
+      StaticJsonDocument<100> docSwitch;
+      DeserializationError err = deserializeJson(docSwitch, bufferfreq);
+
+          String tempId = docSwitch["id"];
+
+
+      char idCharT[tempId.length()]; 
+      strcpy(idCharT, tempId.c_str()); 
+     Serial.println("---------------");
+    
+     if(!strcmp(idCharT,idChar)){         
+
+      int prot = docSwitch["protocol"];
       char buffer_dt[sizeof(docp)];  
       docp["id"] = id;
       docp["protocol"] = prot;
@@ -137,35 +154,53 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       }else if(prot==1){
             previous_prot = prot_mode;
             prot_mode = '2';
-      }
+        }
+     }
   }
  
 
   if(!strcmp(topic,topic_receive_ping)){
-     unsigned long overall_time = millis()-previousTime;
-     Serial.println("------- MQTT Overall time --------");
-     Serial.print(overall_time);
-     Serial.println(" ms");
-     sumTime += overall_time; // differences with timestamp on the sum for the mean value
-     Serial.println("-------- MQTT Average time in ms --------");
-     avg = sumTime/timeCounter; // average value and intermediate result
-     timeCounter += 1; // counter of iteration
-     Serial.print(avg);
-     Serial.println(" ms");
-     looping = true; // update looping status
+    if(testingPing){
+      StaticJsonDocument<capacity> docPing;
+      DeserializationError err = deserializeJson(docPing, bufferfreq);
+      
+    const char* tempId = docPing["id"];
+    if(tempId!=NULL&&!strcmp(tempId,idChar)){
+       unsigned long overall_time = millis()-previousTime;
+       Serial.println("------- MQTT Overall time --------");
+       Serial.print(overall_time);
+       Serial.println(" ms");
+       sumTime += overall_time; // differences with timestamp on the sum for the mean value
+       Serial.println("-------- MQTT Average time in ms --------");
+       avg = sumTime/timeCounter; // average value and intermediate result
+       timeCounter += 1; // counter of iteration
+       Serial.print(avg);
+       Serial.println(" ms");
+       looping = true; // update looping status
+      }
+    }
   }
 
   if(!strcmp(topic,topic_receive_RTT)){ 
-     for (int i = 0; i < id.length()+1; i++) {
-     bufferfreq[i]=(char) payload[i];
-     }
-     char arr[id.length() + 1]; 
- 
-     strcpy(arr, id.c_str()); 
+    if(!testingPing){
+     StaticJsonDocument<capacity> docRTT;
+     DeserializationError err = deserializeJson(docRTT, bufferfreq);
+
      Serial.println("---------------");
-    
-     if(!strcmp(bufferfreq,arr)){
-          testingPing =! testingPing;
+     
+     Serial.println(idChar);
+         
+      
+    //const char* tempId = docRTT["id"];
+    String tempId = docRTT["id"];
+    Serial.println(tempId);
+
+
+      char idCharT[tempId.length()]; 
+      strcpy(idCharT, tempId.c_str()); 
+     Serial.println("---------------");
+     if(!strcmp(idCharT,idChar)){          
+          testingPing = true;
           Serial.println("--------------------------------------------------");
           Serial.print("MQTT Ping testing phase has switched to: ");
           Serial.println(testingPing); // testing mode chosen 0 for MQTT and 1 for CoAP
@@ -175,17 +210,17 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
           sumTime = 0;
           previousTime = 0;
           temp = previous_prot;
+          looping=true;
+        
       }
       
-      looping=true;
+    }
   }
 
 
  if(!strcmp(topic,topic_receive_setup)){
    StaticJsonDocument<200> setupJ;
-   for (int i = 0; i < length; i++) {
-     bufferfreq[i]=(char) payload[i];
-      }
+
     
     DeserializationError err = deserializeJson(setupJ, bufferfreq);
     const char* tempId = setupJ["id"];
@@ -359,7 +394,7 @@ void loop() {
       client.publish(topic_topic_switch, buffer_dt,2);
     }
 
-  }else if(temp == 't'){ // starting testing 
+  }else if(temp == 't'&& prot_mode == '1'){ // starting testing 
     testingPing = !testingPing; // change at not
     Serial.println("--------------------------------------------------");
     Serial.print("Ping testing phase has switched to: ");
@@ -376,7 +411,7 @@ void loop() {
     looping = true;
   }
 
-  if(timeCounter>10&&testingPing){
+  if(timeCounter>5&&testingPing){
     testingPing=false;
     Serial.println("--------------------------------------------------");
     Serial.println("Testing completed with average RTT resulting time of: ");
@@ -452,7 +487,10 @@ void loop() {
   doc["hum"] = humidity;
   doc["gasv"]["gas"] = gas;
   doc["gasv"]["AQI"] = AQI;
+  doc["samF"] = SAMPLE_FREQUENCY;
   doc["ip"]=WiFi.localIP();
+  if(prot_mode=='1')doc["protocol"]= 0;
+  if(prot_mode=='2')doc["protocol"]= 1; 
 
 
   // preparing buffers for String conversation
@@ -461,7 +499,6 @@ void loop() {
 
   // verify protocol mode and execute the sending
   if (prot_mode == '1'){
-    if(previous_prot!='1') timeCounter=1;
     if(!testingPing) Serial.println("Protocol: MQTT");
     // mqtt publish
 
@@ -474,14 +511,12 @@ void loop() {
       Serial.println("message sent!");
       Serial.print("loop at ");
       Serial.print(timeCounter);
-      Serial.println("/10");
+      Serial.println("/5");
       client.publish(topic_receive_ping, buffer_ff,0);
     }
 
   } else if(prot_mode == '2'){
-    if(previous_prot!='2') timeCounter=1;
-    if(!testingPing) Serial.println("Protocol: CoAP");
-    // To-DO: Use Thing.CoAP   
+    if(!testingPing) Serial.println("Protocol: CoAP"); 
     server.Process();  
     
   } else{
