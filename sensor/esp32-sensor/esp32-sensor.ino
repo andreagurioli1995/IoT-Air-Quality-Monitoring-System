@@ -182,6 +182,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
   }
 
   if(!strcmp(topic,topic_receive_RTT)){ 
+    if(!testingPing){
      StaticJsonDocument<capacity> docRTT;
      DeserializationError err = deserializeJson(docRTT, bufferfreq);
 
@@ -198,9 +199,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       char idCharT[tempId.length()]; 
       strcpy(idCharT, tempId.c_str()); 
      Serial.println("---------------");
-    
-     if(!strcmp(idCharT,idChar)){
-      if(!testingPing){
+     if(!strcmp(idCharT,idChar)){          
           testingPing = true;
           Serial.println("--------------------------------------------------");
           Serial.print("MQTT Ping testing phase has switched to: ");
@@ -212,10 +211,10 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
           previousTime = 0;
           temp = previous_prot;
           looping=true;
-        }
+        
       }
       
-      
+    }
   }
 
 
