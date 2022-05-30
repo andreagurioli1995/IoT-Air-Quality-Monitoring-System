@@ -13,15 +13,16 @@ const connectUrl = `mqtt://${hostMqtt}:${portMqtt}` // url for connection
 
 // connection on Mosquitto broker
 var client = null
-const setupTopic =  "sensor/1175/setup"
+const setupTopic = "sensor/1175/setup"
 const topicMqtt = 'sensor/1175/data'
 const producerTestMqtt = 'sensor/1175/test-mqtt'
 const consumerTestMqtt = 'sensor/1175/test-mqtt-res'
 const switchTopic = "sensor/1175/switchRequest"
+const switchResponse = "sensor/1175/switch"
 const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
 
 // session sensors
-var sensors = []
+var sensors = {}
 
 // Influx Data
 const InfluxData = {
@@ -63,6 +64,7 @@ init = () => {
     try {
       client.subscribe(topicMqtt) // 
       client.subscribe(consumerTestMqtt) // for testing mode on MQTT sensors receiving the response
+      client.subscribe(switchResponse) // for a case of response in switchMode or manual setting on the sensor
     } catch (e) {
       console.log('MQTT Error: ' + e)
     }
@@ -79,22 +81,45 @@ init = () => {
       processJSON(data, 'MQTT')
     }
 
-    if(topic == consumerTestMqtt){
+    if (topic == consumerTestMqtt) {
       console.log('MQTT: Trigger message on ' + consumerTestMqtt)
-      try{
+      try {
         data = JSON.parse(payload.toString())
         console.log(data)
-        for(let i = 0; i < sensors.length; i++){
-          if(sensors[i].id == data.id){
-            sensors[i].mqtt = data.time
-          }
+        isPresent = false
+        if (checkId(id)) {
+          sensors[id]['mqtt'] = data.time
+          isPresent = true
         }
-      } catch(e){
-        console.log('Wrong formatting')
-      }
 
+        if (isPresent) {
+          console.log('MQTT: Testing response for sensor: ' + data.id + "\nSaved in session.")
+
+        } else {
+          console.log('MQTT: Sensor not in session during invoking of ' + consumerTestMqtt + ' for sensor ' + data.id)
+
+        }
+      } catch (e) {
+        console.log('MQTT: Wrong formatting on ' + consumerTestMqtt + ' for sensor ' + data.id)
+      }
     }
 
+    if (topic == switchResponse) {
+      console.log('MQTT: Trigger message on ' + switchResponse)
+      data = JSON.parse(payload.toString())
+      isPresent = false
+      id = data.id
+      if (checkId(id)) {
+        sensors[id]['protocol'] = data.protocol
+        isPresent = true
+      }
+
+      if (isPresent) {
+        console.log('MQTT: Switch response for sensor: ' + id + "\nSaved in session.")
+      } else {
+        console.log('MQTT: Sensor not in session during invoking of ' + switchResponse + ' for sensor ' + data.id)
+      }
+    }
   })
 }
 
@@ -108,11 +133,12 @@ forwardData = (data) => {
     console.log('Error, no sensors connected.')
     return false
   }
+  console.log(data)
 
   client.publish(
     setupTopic,
     JSON.stringify(data),
-    {qos: 1, retain: true },
+    { qos: 1, retain: true },
     (e) => {
       if (e) {
         return false;
@@ -131,55 +157,54 @@ forwardData = (data) => {
  * @param request gives the input data for id, ip and protocol of the sensor
  * @param response defines the response with the status of the operation
  */
-const switchMode = (request, response) =>{
-   console.log('Invoke Switching Mode...')
-   let idBody = request.body.id
-   let protocolBody = request.body.protocol
-   let ipBody = request.body.ip
-   
-   if (protocolBody == 0 || protocolBody == 1){
-     var switched;
-     if(protocolBody == 0){
+const switchMode = (request, response) => {
+  console.log('Invoke Switching Mode...')
+  let idBody = request.body.id
+  let protocolBody = request.body.protocol
+  let ipBody = request.body.ip
+
+  if (protocolBody == 0 || protocolBody == 1) {
+    var switched;
+    if (protocolBody == 0) {
       switched = 1
-     } else {
-       switched = 0
-     }
+    } else {
+      switched = 0
+    }
 
-     // get data from the body
-     let json = {
-       id: idBody,
-       ip : ipBody,
-       protocol : switched
-     }
+    // get data from the body
+    let json = {
+      id: idBody,
+      ip: ipBody,
+      protocol: switched
+    }
 
-     // publish data on sensors network
-     client.publish(switchTopic, JSON.stringify(json), {qos : 1}, (e)=>{
-       if(e){
-         console.log('Error during publishing on ' + switchTopic)
-       } else {
-         console.log('Publish successful on ' + switchTopic)
-       }
-     })
-   } else {
-     console.log('Switch Mode: Error, protocol value are not acceptable.')
-     response.status(500).json("")
-   }
-   
-   // prepare response to update the front-end status
-   let responseJson = {
-     id : idBody,
-     ip : ipBody,
-     protocol : switched
-   }
-   // update sensor session data
-   for(let i = 0; i < sensors.length; i++){
-     if(sensors[i].id == idBody){
-       sensors[i].protocol = switched
-       break
-     }
-   }
-   // send response
-   response.status(200).json(JSON.stringify(responseJson))
+    // publish data on sensors network
+    client.publish(switchTopic, JSON.stringify(json), { qos: 1 }, (e) => {
+      if (e) {
+        console.log('Error during publishing on ' + switchTopic)
+      } else {
+        console.log('Publish successful on ' + switchTopic)
+
+      }
+    })
+  } else {
+    console.log('Switch Mode: Error, protocol value are not acceptable.')
+    response.status(500).json("")
+  }
+
+  // prepare response to update the front-end status
+  let responseJson = {
+    id: idBody,
+    ip: ipBody,
+    protocol: switched
+  }
+  // update sensor session data
+  if (checkId(id)) {
+    sensors[id]['protol'] = switched
+  }
+
+  // send response
+  response.status(200).json(JSON.stringify(responseJson))
 }
 
 
@@ -188,10 +213,10 @@ const switchMode = (request, response) =>{
  * @param request gives the input data
  * @param response defines the response with the test value on CoAP
  */
-const testCoAP = (request, response) =>{
-   // TO-DO: testing CoAP
-   console.log('Invoking TestCoAP...')
-   response.json("")
+const testCoAP = (request, response) => {
+  // TO-DO: testing CoAP
+  console.log('Invoking TestCoAP...')
+  response.json("")
 }
 
 
@@ -200,15 +225,22 @@ const testCoAP = (request, response) =>{
  * @param request gives the input data
  * @param response defines the response status of the request, do not contains the response data
  */
-const testMQTT = (request, response) =>{
+const testMQTT = (request, response) => {
   console.log('----------------------------')
-  console.log('Sending Testing MQTT request on id: ' + request.body.id)
+  console.log('MQTT: Sending Testing MQTT request on id: ' + request.body.id)
   console.log('----------------------------')
   client.publish(
     producerTestMqtt,
-    request.body.id,
-    { qos: 2}
-    );
+    JSON.stringify({ id: request.body.id }),
+    { qos: 2 }, (e) => {
+      if (e) {
+        console.log('MQTT: Error during the sending ' + request.body.id + ' on topic ' + producerTestMqtt)
+      } else {
+        console.log('MQTT: Sending ' + request.body.id + ' correctly on topic ' + producerTestMqtt)
+      }
+    }
+  );
+  response.status(200).json("")
 }
 
 
@@ -220,59 +252,55 @@ const testMQTT = (request, response) =>{
 const updateSetup = (request, response) => {
   console.log('HTTP: Update data received...')
   console.log('-----------------------------')
-  
-  const data = {
-    id: request.body.id,
-    minGas: request.body.minGas,
-    maxGas: request.body.maxGas,
-    sampleFrequency: request.body.sampleFrequency,
-  }
-
-  console.log(data.id)
-
-  // check data
-
-  if (data.id == undefined || data.id == null) {
-    console.log('HTTP Error: Invalid data received, no valid id specification')
-  }
+  let id = request.body.id
+  if (checkId(id)) {
+    const data = {
+      id: request.body.id,
+      minGas: request.body.minGas,
+      maxGas: request.body.maxGas,
+      sampleFrequency: request.body.sampleFrequency,
+    }
+    sensors[id]['sampleFrequency'] = request.body.sampleFrequency
 
 
-  if (data.minGas > data.maxGas || data.sampleFrequency < 0) {
-    console.log('HTTP Error: Invalid values received.')
-    response.json({status : 400})
-    console.log('-----------------------------')
-  }
 
-  else {
+    // check data
 
-    if (data.minGas != undefined && data.minGas != null) {
-      console.log('HTTP: Received MIN_GAS_VALUE from the dashboard: ' + data.maxGas)
-    } else {
-      data.minGas = -1;
+    if (data.id == undefined || data.id == null || data.minGas > data.maxGas || data.sampleFrequency < 0) {
+      console.log('HTTP Error: Invalid values received.')
+      response.json({ status: 400 })
+      console.log('-----------------------------')
     }
 
-    if (data.maxGas != undefined && data.maxGas != null) {
-      console.log('HTTP: Received MAX_GAS_VALUE from the dashboard: ' + data.maxGas)
-    } else {
-      data.maxGas = -1
-    }
+    else {
 
-    if (data.sampleFrequency != undefined && data.sampleFrequency != null) {
-      console.log('HTTP: Received SAMPLE_FREQUENCY from the dashboard: ' + data.sampleFrequency)
-    } else {
-      data.sampleFrequency = -1
-    }
-    console.log('-----------------------------')
-    success = forwardData(data) // forward on MQTT channels
-    if (!success) {
-      console.log('Error during publishing setup data')
+      if (data.minGas != undefined && data.minGas != null) {
+        console.log('HTTP: Received MIN_GAS_VALUE from the dashboard: ' + data.maxGas)
+      } else {
+        data.minGas = -1;
+      }
+
+      if (data.maxGas != undefined && data.maxGas != null) {
+        console.log('HTTP: Received MAX_GAS_VALUE from the dashboard: ' + data.maxGas)
+      } else {
+        data.maxGas = -1
+      }
+
+      if (data.sampleFrequency != undefined && data.sampleFrequency != null) {
+        console.log('HTTP: Received SAMPLE_FREQUENCY from the dashboard: ' + data.sampleFrequency)
+      } else {
+        data.sampleFrequency = -1
+      }
+      console.log('-----------------------------')
+      success = forwardData(data) // forward on MQTT channels
+      if (!success) {
+        console.log('Error during publishing setup data')
+      }
     }
   }
   response.json("")
 
 }
-
-
 
 /**
  * getSensorData(request, response) to retrieves information about the session sensors
@@ -280,35 +308,48 @@ const updateSetup = (request, response) => {
  * @param response is the json of sensors 
  */
 const getSensorData = (request, response) => {
-  response.json(sensors) 
+  response.json(sensors)
 }
 
-
 // ------ Common MQTT and CoAP functions --------
-
 /**
  * processJSON(data, protocol) processes sensor data and setup information
  * @param data is data given by the sensor
  * @param protocol is the protocol used to the sensor
  */
 const processJSON = (data, protocol) => {
+  idJSON = data['id']
+  if (idJSON != undefined && idJSON != null) {
+    if (!checkId(idJSON)) {
+      sensors[idJSON] = {
+        id: idJSON, // internal key
+        ip: data['ip'],
+        mqtt: "",
+        coap: "",
+        protocol: data['protocol'],
+        sampleFrequency: data['samF'],
+        lastTime: Math.floor(Date.now() / 1000)
+      }
 
-  if (data['id'] != undefined && data['id'] != null) {
-    if(!checkId(data['id'])){
-      sensors.push({
-        id : data['id'],
-        ip : data['ip'],
-        mqtt : "",
-        coap : "",
-        protocol: 0,
-      })
-      console.log('Sending ' + data['id'] + ' on ' + producerTestMqtt)
+      console.log('Sending ' + idJSON + ' on ' + producerTestMqtt)
       client.publish(
         producerTestMqtt,
-        data['id'],
-        { qos: 2}
-        );
+        JSON.stringify({ id: idJSON }),
+        { qos: 2 }, (e) => {
+          if (e) {
+            console.log('Error during publishing on ' + producerTestMqtt + ' for sensor ' + idJSON)
+          } else {
+            console.log('MQTT: Publish correctly on ' + producerTestMqtt + " for sensor " + idJSON)
+          }
+        }
+      );
+    } else {
+      // update values
+      sensors[idJSON]['protocol'] = data['protocol']
+      sensors[idJSON]['ip'] = data['ip']
+      sensors[idJSON]['sampleFrequency'] = data['samF']
     }
+
   }
   // checks tests 
   console.log('---------------------')
@@ -319,17 +360,17 @@ const processJSON = (data, protocol) => {
   const influxId = data['id']
   const influxManager = new influx.InfluxManager(InfluxData.host, InfluxData.port, InfluxData.token, InfluxData.org)
   for (const [key, value] of Object.entries(InfluxData.buckets)) {
-    switch(value){
+    switch (value) {
       case "temperature": influxManager.writeApi(influxId, value, data['temp'])
-      break;
+        break;
       case "humidity": influxManager.writeApi(influxId, value, data['hum'])
-      break;
+        break;
       case "gas": influxManager.writeApi(influxId, value, data['gasv']['gas'])
-      break;
+        break;
       case "aqi": influxManager.writeApi(influxId, value, data['gasv']['AQI'])
-      break;
+        break;
       case "rss": influxManager.writeApi(influxId, value, data['rss'])
-      break;
+        break;
       default:
         break;
     }
@@ -340,20 +381,13 @@ const processJSON = (data, protocol) => {
 }
 
 // --------- Utils ----------
-
 /*+
  * checkId(id) checks if an id is present in the session sensor collection
  * @param id to trigger
  * @return true if it is included, false otherwise
  */
-const checkId = (id) =>{
-  included = false
-  sensors.forEach((value, index) =>{
-    if (value.id == id){
-      included = true
-    }
-  });
-  return included
+const checkId = (id) => {
+  return sensors[id] != null && sensors[id] != undefined
 }
 
 

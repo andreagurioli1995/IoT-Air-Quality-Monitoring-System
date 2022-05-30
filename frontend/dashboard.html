@@ -374,20 +374,21 @@
                     // after that get the content and updates rows of the table
                 }
             });
-
         }
 
         const addRow = (data) => {
-            let length = data.length
+            let length = Object.keys(data).length
             let tBody = document.getElementById('tbody')
             let child = tBody.lastElementChild;
             console.log('Length: ' + length)
+            ids = Object.keys(data)
+           
             while (child) {
                 tBody.removeChild(child);
                 child = tBody.lastElementChild;
             }
             for (let i = 0; i < length; i++) {
-                let id = data[i].id
+                let id = ids[i]
                 let tr = document.createElement('tr')
                 let th = document.createElement('th')
                 let td = document.createElement('td')
@@ -401,23 +402,23 @@
                 th.setAttribute('scope', 'row')
                 th.innerHTML = i
                 td.innerHTML = id
-                tdIp.innerHTML = data[i].ip
-                if (data[i].protocol == 0) {
-                    if (data[i].mqtt == undefined || data[i].mqtt == null || data[i].mqtt == "") {
+                tdIp.innerHTML = data[id]['ip']
+                if (data[id]['protocol'] == 0) {
+                    if (data[id]['mqtt'] == undefined || data[id]['mqtt'] == null || data[id]['mqtt'] == "") {
                         tdTest.innerHTML = " - "
                     } else {
-                        tdTest.innerHTML = data[i].mqtt + " ms"
+                        tdTest.innerHTML = data[id]['mqtt'] + " ms"
                     }
                 } else {
-                    if (data[i].coap == undefined || data[i].coap == null || data[i].coap == "") {
+                    if (data[id]['coap'] == undefined || data[id]['coap'] == null || data[id]['coap'] == "") {
                         tdTest.innerHTML = " - "
                     } else {
                         console.log('Adding elements on TestCoap')
-                        tdTest.innerHTML = data[i].coap + " ms"
+                        tdTest.innerHTML = data[id]['coap'] + " ms"
                     }
                 }
 
-                if (data[i].protocol == 0) {
+                if (data[id]['protocol'] == 0) {
                     tdProt.innerHTML = "MQTT"
                 } else {
                     tdProt.innerHTML = "CoAP"
@@ -425,13 +426,13 @@
 
                 let button = document.createElement('button')
                 button.setAttribute('class', 'btn btn-danger mb-2')
-                button.setAttribute('id', 'test-btn-' + data[i].id)
-                if (data[i].protocol == 0) {
+                button.setAttribute('id', 'test-btn-' + data[id])
+                if (data[id]['protocol'] == 0) {
                     // mqtt
                     button.innerHTML = "Test MQTT"
                     button.addEventListener('click', (e) => {
                         jsonData = {
-                            id: data[i].id, // no need IP
+                            id: id, // no need IP
                         }
                         $.ajax({
                             type: 'POST',
@@ -451,8 +452,8 @@
                     button.innerHTML = "Test CoAP"
                     button.addEventListener('click', (e) => {
                         jsonData = {
-                            id: data[i].id,
-                            ip: data[i].ip,
+                            id: data[id],
+                            ip: data[id]['ip'],
                         }
                         $.ajax({
                             type: 'POST',
@@ -471,8 +472,8 @@
 
                 let switchButton = document.createElement('button')
                 switchButton.setAttribute('class', 'btn btn-danger mb-2')
-                switchButton.setAttribute('id', 'switch-btn-' + data[i].id)
-                if (data[i].protocol == 0) {
+                switchButton.setAttribute('id', 'switch-btn-' + id)
+                if (data[id]['protocol'] == 0) {
                     switchButton.innerHTML = "Switch CoAP"
                 } else {
                     switchButton.innerHTML = "Switch MQTT"
@@ -481,9 +482,9 @@
                 switchButton.addEventListener('click', (e) => {
                     // To-DO: Switching mode
                     jsonData = {
-                        id: data[i].id,
-                        ip: data[i].ip,
-                        protocol: data[i].protocol,
+                        id: id,
+                        ip: data[id]['ip'],
+                        protocol: data[id]['protocol'],
                     }
                     $.ajax({
                         type: 'POST',
@@ -497,17 +498,17 @@
                             console.log('Protocol changed')
                             console.log(data)
                             data = JSON.parse(data)
-                            console.log('switch-btn-' + data.id)
-                            let switchButton = document.getElementById('switch-btn-' + data.id)
-                            let actButton = document.getElementById('test-btn-' + data.id)
+                            console.log('switch-btn-' + id)
+                            let switchButton = document.getElementById('switch-btn-' + id)
+                            let actButton = document.getElementById('test-btn-' + id)
                             if (data.protocol == 0) {
                                 console.log('Switching to MQTT')
                                 switchButton.value = "Switch MQTT"
                                 actButton.value = "Test CoAP"
                                 actButton.addEventListener('click', (e) => {
                                     jsonData = {
-                                        id: data.id,
-                                        ip: data.ip,
+                                        id: data[id],
+                                        ip: data[id]['ip'],
                                     }
                                     $.ajax({
                                         type: 'POST',
@@ -525,10 +526,11 @@
                             } else {
                                 console.log('Switching to CoAP')
                                 switchButton.value = "Switch CoAP"
+                                let actButton = document.getElementById('act-' + id)
                                 actButton.value = "Test MQTT"
                                 actButton.addEventListener('click', (e) => {
                                     jsonData = {
-                                        id: data.id, // no need IP
+                                        id: data[id], // no need IP
                                     }
                                     $.ajax({
                                         type: 'POST',
@@ -553,14 +555,11 @@
 
                         }
                     });
-
                 })
-
-
                 tdAct.appendChild(button)
-                tdAct.setAttribute('id', 'act-' + data[i].id)
+                tdAct.setAttribute('id', 'act-' + id)
                 tdSwitch.appendChild(switchButton)
-                tdSwitch.setAttribute('id', 'switch-' + data[i].id)
+                tdSwitch.setAttribute('id', 'switch-' + id)
                 tr.appendChild(th)
                 tr.appendChild(td)
                 tr.appendChild(tdTest)
@@ -568,9 +567,10 @@
                 tr.appendChild(tdIp)
                 tr.appendChild(tdAct)
                 tr.appendChild(tdSwitch)
-                tr.setAttribute('id', data[i].id)
+                tr.setAttribute('id', data[id])
                 tBody.appendChild(tr)
             }
+
         }
 
         const updateButton = document.getElementById('update-button');
@@ -595,7 +595,8 @@
                 maxGas: _maxGas,
                 sampleFrequency: _sampleFrequency,
             }
-
+            console.log('AAAAA')
+            console.log(jsonData)
             if ((!isNaN(_sampleFrequency) || _sampleFrequency == "") && (!isNaN(_minGas) || _minGas == "")
                 && (!isNaN(_maxGas) || _maxGas == "") && _id != "") {
                 $.ajax({
