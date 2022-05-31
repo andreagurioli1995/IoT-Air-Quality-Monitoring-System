@@ -160,7 +160,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  
 
   if(!strcmp(topic,topic_receive_ping)){
-    if(testingPing){
+    if(testingPing&&prot_mode=='1'){
       StaticJsonDocument<capacity> docPing;
       DeserializationError err = deserializeJson(docPing, bufferfreq);
       
@@ -182,7 +182,7 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
   }
 
   if(!strcmp(topic,topic_receive_RTT)){ 
-    if(!testingPing){
+    if(!testingPing&&prot_mode=='1'){
      StaticJsonDocument<capacity> docRTT;
      DeserializationError err = deserializeJson(docRTT, bufferfreq);
 
