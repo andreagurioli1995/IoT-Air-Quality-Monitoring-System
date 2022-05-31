@@ -452,9 +452,10 @@
                     button.innerHTML = "Test CoAP"
                     button.addEventListener('click', (e) => {
                         jsonData = {
-                            id: data[id],
-                            ip: data[id]['ip'],
+                            id: id,
                         }
+                        console.log('Sending:')
+                        console.log(jsonData)
                         $.ajax({
                             type: 'POST',
                             url: '/test-coap',
@@ -595,8 +596,6 @@
                 maxGas: _maxGas,
                 sampleFrequency: _sampleFrequency,
             }
-            console.log('AAAAA')
-            console.log(jsonData)
             if ((!isNaN(_sampleFrequency) || _sampleFrequency == "") && (!isNaN(_minGas) || _minGas == "")
                 && (!isNaN(_maxGas) || _maxGas == "") && _id != "") {
                 $.ajax({

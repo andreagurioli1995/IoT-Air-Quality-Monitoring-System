@@ -1,7 +1,7 @@
 const { json } = require('express/lib/response')
 const mqtt = require('mqtt')
 const influx = require('../influxdb/InfluxManager')
-
+const coap = require('coap')
 // Server session variables
 var idValues = []
 
@@ -23,6 +23,8 @@ const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
 
 // session sensors
 var sensors = {}
+var requestsCoAP = []
+
 
 // Influx Data
 const InfluxData = {
@@ -75,6 +77,7 @@ init = () => {
 
   client.on('message', (topic, payload) => {
 
+
     if (topic == topicMqtt) {
       console.log('MQTT: Trigger message on ' + topicMqtt)
       data = JSON.parse(payload.toString()) // stringify is used for different encoding string
@@ -87,6 +90,7 @@ init = () => {
         data = JSON.parse(payload.toString())
         console.log(data)
         isPresent = false
+        id = data.id
         if (checkId(id)) {
           sensors[id]['mqtt'] = data.time
           isPresent = true
@@ -200,8 +204,10 @@ const switchMode = (request, response) => {
   }
   // update sensor session data
   if (checkId(id)) {
-    sensors[id]['protol'] = switched
+    sensors[id]['protocol'] = switched
   }
+
+
 
   // send response
   response.status(200).json(JSON.stringify(responseJson))
@@ -214,18 +220,21 @@ const switchMode = (request, response) => {
  * @param response defines the response with the test value on CoAP
  */
 const testCoAP = (request, response) => {
-  // TO-DO: testing CoAP
-  console.log('Invoking TestCoAP...')
-  response.json("")
+  console.log('CoAP:  Invoking TestCoAP...')
+  var id = request.body.id
+  var ip = sensors[id]['ip']
+  console.log('Sending /GET request to ' + ip)
+  sensors[id]['mode'] = 1
+  console.log('CoAP: Waiting on ' + id + '...')
+  response.status(200).json("")
 }
-
 
 /**
  * testMQTT(request, response) active a request to test on MQTT for one of the connected sensor
  * @param request gives the input data
  * @param response defines the response status of the request, do not contains the response data
  */
-const testMQTT = (request, response) => {
+ const testMQTT = (request, response) => {
   console.log('----------------------------')
   console.log('MQTT: Sending Testing MQTT request on id: ' + request.body.id)
   console.log('----------------------------')
@@ -262,8 +271,6 @@ const updateSetup = (request, response) => {
     }
     sensors[id]['sampleFrequency'] = request.body.sampleFrequency
 
-
-
     // check data
 
     if (data.id == undefined || data.id == null || data.minGas > data.maxGas || data.sampleFrequency < 0) {
@@ -291,15 +298,20 @@ const updateSetup = (request, response) => {
       } else {
         data.sampleFrequency = -1
       }
-      console.log('-----------------------------')
-      success = forwardData(data) // forward on MQTT channels
-      if (!success) {
-        console.log('Error during publishing setup data')
+
+      if (data.sampleFrequency != undefined && data.sampleFrequency > 0 && data.sampleFrequency != null) {
+        id = data.id
+
+        console.log('-----------------------------')
+        success = forwardData(data) // forward on MQTT channels
+        if (!success) {
+          console.log('Error during publishing setup data')
+        }
       }
     }
-  }
-  response.json("")
+    response.json("")
 
+  }
 }
 
 /**
@@ -308,6 +320,7 @@ const updateSetup = (request, response) => {
  * @param response is the json of sensors 
  */
 const getSensorData = (request, response) => {
+  console.log(sensors)
   response.json(sensors)
 }
 
@@ -390,6 +403,69 @@ const checkId = (id) => {
   return sensors[id] != null && sensors[id] != undefined
 }
 
+const getSensorsList = () => {
+  return sensors
+}
+
+
+setInterval(() => {
+  Object.keys(sensors).forEach((id) => {
+    if (sensors[id] != undefined) {
+      if (sensors[id]['protocol'] == 1) {
+        console.log('Sending request on ' + 'coap://' + sensors[id]['ip'] + '/data')
+        const req = coap.request('coap://' + sensors[id]['ip'] + '/data', { observe: true })
+        if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+          if(sensors[id]['counterTest'] == undefined){
+            // first request
+            sensors[id]['counterTest'] = 0
+            sensors[id]['testingParams'] = [0, 0, 0, 0, 0] // list of time in the response
+            sensors[id]['testingParams'][sensors[id]['counterTest']] = Math.floor(Date.now() / 1000) // first request, got the first response
+          } else {
+            // other requests
+            sensors[id]['testingParams'][sensors[id]['counterTest']] = Math.floor(Date.now() / 1000) // last request for response i
+            
+          }
+        }
+
+
+        req.on('response', (res) => {
+          res.pipe(process.stdout)
+          if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+            if(sensors[id]['counterTest'] != undefined && sensors[id]['testingParams'] != undefined &&
+            sensors[id]['counterTest'] < 5 && sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+              // one of the internal testing detected.
+              // set the delay on the response i
+              // x = x - last_y
+              sensors[id]['testingParams'][sensors[id]['counterTest']] = Math.floor(Date.now() / 1000) - sensors[id]['testingParams'][sensors[id]['counterTest']]
+              sensors[id]['counterTest'] = sensors[id]['counterTest'] + 1 // counter is != 0
+
+            } else if(sensors[id]['counterTest'] != undefined &&  sensors[id]['testingParams'] != undefined && sensors[id]['counterTest'] == 5){
+              // we got 5 response
+              sensors[id]['counterTest'] = undefined
+              let array = sensors[id]['testingParams']
+              let sum = 0
+              for(let i = 0; i < array.length; i++){
+                sum +=array[i]
+              }
+              sensors[id]['coap'] = Math.floor(sum / 5) -  (sensors[id]['sampleFrequency']*5)
+              sensors[id]['mode'] = 0
+            }
+              
+          }
+          res.on('end', () => {
+            //
+          })
+        })
+
+        req.on('error', (e) => {
+          // do nothing
+        })
+        req.end()
+      }
+    }
+  })
+}, 1000)
+
 
 // module export 
 module.exports = {
@@ -397,6 +473,7 @@ module.exports = {
   processJSON,
   forwardData,
   getSensorData,
+  getSensorsList,
   switchMode,
   testMQTT,
   testCoAP,

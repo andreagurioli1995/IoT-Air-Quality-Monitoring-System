@@ -4,6 +4,9 @@ const bodyParser = require('body-parser')
 const path = require('path');
 const protocols = require('./protocols')
 const os = require('os')
+
+
+
 // --------- MQTT setup -------------
 protocols.init()
 
@@ -26,34 +29,6 @@ for (const name of Object.keys(netInterface)) {
 // Public IP
 const host = resultsNet[Object.keys(resultsNet)[0]][0]
 
-// ----- CoaP setup -----
-
-const coapPort = 5683
-
- //Connect CoAP client to a server
- const coap = require('coap')
- const serverCoAP = coap.createServer({ type: 'udp6' })
-
- serverCoAP.on('connection', ()=>{
-   console.log('CoAP: New sensor connected!')
- })
-
- serverCoAP.on('request', (req, res) => {
-
-  dispatching = req.url.split('/')[1]
-  if(dispatching == 'data'){
-    protocols.processJSON(JSON.parse(req.payload.toString()), 'CoAP');
-    res.end('200')
-  } else {
-    // not supported URI
-    res.end('200')
-  }
-})
-
-// the default CoAP port is 5683
-serverCoAP.listen(() => {
-  console.log(`Listening in CoAP on ${host}:${coapPort}.`)
-})
 
 
 // ----- HTTP setup -----
