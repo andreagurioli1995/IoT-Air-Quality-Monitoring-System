@@ -231,19 +231,19 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       int maxGas = setupJ["maxGas"];
       
       // check missing data
-      if(sampleFrequency != -1){
+      if(sampleFrequency != -1&&sampleFrequency != 0){
         Serial.print("Setup SAMPLE_FREQUENCY at: ");
         Serial.println(sampleFrequency);
          SAMPLE_FREQUENCY = sampleFrequency;
       }
 
-      if(minGas != -1){
+      if(minGas != -1 && minGas!=0){
         Serial.print("Setup MIN_GAS_VALUE at: ");
-        Serial.println(maxGas);
+        Serial.println(minGas);
         MIN_GAS_VALUE = minGas;   
       }
 
-      if(maxGas != -1){
+      if(maxGas != -1 && maxGas!=0){
         Serial.print("Setup MAX_GAS_VALUE at: ");
         Serial.println(maxGas);
         MAX_GAS_VALUE = maxGas; 
@@ -435,8 +435,12 @@ void loop() {
     gas_values[c+1] = gas_values[c];
   }
 
+
   // retrieves and save gas values temporally for 5 loops
   gas_values[0] = gas;
+  
+  
+ 
   int sum = 0;
    for(int c=0; c<5; c++){
     sum+=gas_values[c];
@@ -449,10 +453,11 @@ void loop() {
     avg_gas = sum/5;
   }
 
+
   // defining value of AQI based on the average value
   if(avg_gas <= MAX_GAS_VALUE){
     AQI = 2;
-  } else if(MIN_GAS_VALUE >= avg_gas > MAX_GAS_VALUE){
+  } else if(MIN_GAS_VALUE >= avg_gas && avg_gas> MAX_GAS_VALUE){
     AQI = 1;
   } else {
     AQI = 0;
