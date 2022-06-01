@@ -1,3 +1,6 @@
+
+// ------------- Dependencies -------------
+
 #include<Wire.h> 
 #include<SPI.h> 
 #include <DHT.h> 
@@ -6,112 +9,85 @@
 #include <String.h>
 #include <ArduinoJson.h>
 #include "Thing.CoAP.h"
-//#include <Time.h>
 
- 
+// ----------- Macro -----------
+
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
+#define LAT 44.497 // Warning: need to modify it in case of multisensor GPS simulation
+#define LNG 11.353 // Warning: need to modify it in case of multisensor GPS simulation
+#define INIT_MIN_GAS 4095 // initial setup for gas playground
+#define INIT_MAX_GAS 500 // initial setup for gas playground
+#define INIT_SAMPLE_FREQ // initial setup for sensors 
+#define INIT_AQI 2 // initial setup for gas playground
+#define INIT_RSS 0 // initial setup for WiFi analysis
 
-const float lat = 44.497;
-const float lng = 11.353;
-String id;
-const int capacity = JSON_OBJECT_SIZE(192);
-StaticJsonDocument<capacity> doc;
-// json for switching protocol
-StaticJsonDocument<capacity> docp;
-StaticJsonDocument<capacity> docT;
+// ----------- Variables -----------
+const float lat = LAT; // latitude of the GPS location (no GPS sensor)
+const float lng = LNG; // longitude of the GPS location (no GPS sensor)
+const int capacity = JSON_OBJECT_SIZE(192); // capacity size 
+StaticJsonDocument<capacity> doc; // Json for data communication
+StaticJsonDocument<capacity> docp; // Json for the protocol switching
+StaticJsonDocument<capacity> docT; // Json for testing ping management
+unsigned long previousTime = millis(); // timestamp 
+bool testingPing = false; // Testing ping variable, if true, the board is in ping RTT test time
+bool looping = true; // looping variable in order to make synchronous the protocol for RTT testing
+Thing::CoAP::Server server;  // server side setting for CoAP communication
+Thing::CoAP::ESP::UDPPacketProvider udpProvider; // updProvider for CoAP communication
+long int SAMPLE_FREQUENCY = INIT_SAMPLE_FREQ; // sample frequency of sampling 
+int MIN_GAS_VALUE = INIT_MIN_GAS; // minimum gas value corresponding to the upper value
+int MAX_GAS_VALUE = INIT_MAX_GAS; // maximum gas value corresponding to the lower value
+int AQI = INIT_AQI; // AQI value
+int loops = 0; // loop counting for the variables 
+int timeCounter = 1; // timing for the mean for AQI
+int gas_values[5] = {0,0,0,0,0}; // status of gas values
+float RSS = INIT_RSS; // WiFi RSS value
+float avg_gas; // current avegare gas
+char prot_mode = '1'; // Protocol switching variables
+char previous_prot = '1'; // Previous protocol mode
+char temp; // temperature
+char buffer_ff[sizeof(doc)]; // buffer for JSON message for CoAP and MQTT payload
+double sumTime = 0; // sum of gas values in the AQI definition
+double avg; // average of gas during the AQI 
+String id; // id of the ESP32 (connected to the internal fireware)
 
-
-// Testing ping variable, if true, the board is in ping RTT test time
-bool testingPing = false;
-
-// looping variable in order to make synchronous the protocol for RTT testing
-bool looping = true;
-
-//Declare our CoAP client and the packet handler
-Thing::CoAP::Server server;
-Thing::CoAP::ESP::UDPPacketProvider udpProvider;
-char buffer_ff[sizeof(doc)];
-// setting metadata
-long int SAMPLE_FREQUENCY = 10000;
-int MIN_GAS_VALUE = 4095;
-int MAX_GAS_VALUE = 500;
-
-// AQI and WiFi RSS
-int AQI = 2;
-float RSS = 0; 
-
-// Variables for AQI calculations
-int gas_values[5] = {0,0,0,0,0};
-float avg_gas;  
-int cap_gas = 4500;
-//counter for gas mean purposes
-int loops = 0;
-
-
-//variables for time computation
-unsigned long previousTime = millis();
-double sumTime = 0;
-double avg;
-int timeCounter = 1;
-
-// Protocol switching variables
-char prot_mode = '1';
-char previous_prot = '1';
-char temp;
-
-// WiFi Data
+// ----------- WiFi Data -----------
 //const char *ssid = "iPhone"; // Warning: enter your WiFi name
 //const char *password = "19951995";  // Warning: enter WiFi password
 const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
 const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
-
-// Proxy Data
+// ----------- Proxy Data -----------
 // check it on https://www.whatismyip.com/it/
 IPAddress proxyIp(192,168,1,2);
 
-// MQTT Broker
+// ----------- MQTT Broker -----------
 const char *mqtt_broker = "130.136.2.70";
 const char *topic = "sensor/1175/";
 
-// setup variables
-const char *topic_receive_setup = "sensor/1175/setup";
-
-// ping for time delay computation
-const char *topic_receive_ping = "sensor/1175/ping";
-
-// switch topics
+// ----------- Topics -----------
+const char *topic_receive_setup = "sensor/1175/setup"; // setup topic to change metadata
+const char *topic_receive_ping = "sensor/1175/ping"; // ping topic for the testing mod
 const char *topic_topic_switch = "sensor/1175/switch";//manda id, ip e protocollo 0 mqtt 1 per coap
 const char *topic_req_switch = "sensor/1175/switchRequest"; // richiesta di switching di protocollo
+const char *topic_receive_RTT = "sensor/1175/test-mqtt"; // topic to start the testing mode
+const char *topic_send_RTT_result = "sensor/1175/test-mqtt-res"; // sending the result on testing mde
+const char *data_topic = "sensor/1175/data"; // data topic to publish sensors updating
 
-// test topics
-const char *topic_receive_RTT = "sensor/1175/test-mqtt";
-const char *topic_send_RTT_result = "sensor/1175/test-mqtt-res";
-
-// sensor variables
-const char *data_topic = "sensor/1175/data";
-
-// mqtt variables
+// ----------- MQTT Credentials -----------
 const char *mqtt_username = "iot2020";
 const char *mqtt_password = "mqtt2020*";
 const int mqtt_port = 1883;
 
 
-// WiFi client declaration for Mqtt
-WiFiClient mqttClient;
+// ----------- WiFi client declaration for Mqtt -----------
+WiFiClient mqttClient; // WiFi client for the network interface
+PubSubClient client(mqttClient); //  Declaration of the PubSubClient on the sensor wifi connection.
+DHT dht_sensor(DHTPIN,DHT22); // DHT22 sensor with setup on pin
 
-// Declaration of the PubSubClient on the sensor wifi connection.
-PubSubClient client(mqttClient);
-
-// DHT22 sensor with setup on pin
-DHT dht_sensor(DHTPIN,DHT22); 
-
-
-// Functions 
-// ------------ MQTT Functions --------------
 
 // ----------- MQTT Callback -----------
+
 void callbackMQTT(char *topic, byte *payload, unsigned int length) {
  Serial.print("Message arrived on topic: ");
  Serial.println(topic);
@@ -125,21 +101,16 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
      bufferfreq[i]=(char) payload[i];
    }
 
-// TO-DO: Check IDs on topics related to your own!
-// handling the request for switching the protocol
+  // handling the request for switching the protocol
   if(!strcmp(topic,topic_req_switch )){
       StaticJsonDocument<100> docSwitch;
       DeserializationError err = deserializeJson(docSwitch, bufferfreq);
-
-          String tempId = docSwitch["id"];
-
-
+      String tempId = docSwitch["id"];
       char idCharT[tempId.length()]; 
-      strcpy(idCharT, tempId.c_str()); 
+      strcpy(idCharT, tempId.c_str());
+       
      Serial.println("---------------");
-    
-     if(!strcmp(idCharT,idChar)){         
-
+     if(!strcmp(idCharT,idChar)){        
       int prot = docSwitch["protocol"];
       char buffer_dt[sizeof(docp)];  
       docp["id"] = id;
@@ -156,13 +127,11 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
         }
      }
   }
- 
-
   if(!strcmp(topic,topic_receive_ping)){
     if(testingPing&&prot_mode=='1'){
       StaticJsonDocument<capacity> docPing;
       DeserializationError err = deserializeJson(docPing, bufferfreq);
-      
+   
     const char* tempId = docPing["id"];
     if(tempId!=NULL&&!strcmp(tempId,idChar)){
        unsigned long overall_time = millis()-previousTime;
@@ -179,24 +148,17 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       }
     }
   }
-
   if(!strcmp(topic,topic_receive_RTT)){ 
     if(!testingPing&&prot_mode=='1'){
      StaticJsonDocument<capacity> docRTT;
      DeserializationError err = deserializeJson(docRTT, bufferfreq);
 
      Serial.println("---------------");
-     
      Serial.println(idChar);
-         
-      
-    //const char* tempId = docRTT["id"];
-    String tempId = docRTT["id"];
-    Serial.println(tempId);
-
-
-      char idCharT[tempId.length()]; 
-      strcpy(idCharT, tempId.c_str()); 
+     String tempId = docRTT["id"];
+     Serial.println(tempId);
+     char idCharT[tempId.length()]; 
+     strcpy(idCharT, tempId.c_str()); 
      Serial.println("---------------");
      if(!strcmp(idCharT,idChar)){          
           testingPing = true;
@@ -210,26 +172,18 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
           previousTime = 0;
           temp = previous_prot;
           looping=true;
-        
       }
-      
     }
   }
-
-
  if(!strcmp(topic,topic_receive_setup)){
    StaticJsonDocument<200> setupJ;
-
-    
     DeserializationError err = deserializeJson(setupJ, bufferfreq);
     const char* tempId = setupJ["id"];
     if(!err&&!strcmp(tempId,id.c_str())){
-  
       long int sampleFrequency = setupJ["sampleFrequency"];
       int minGas = setupJ["minGas"];
       int maxGas = setupJ["maxGas"];
-      
-      // check missing data
+ 
       if(sampleFrequency != -1&&sampleFrequency != 0){
         Serial.print("Setup SAMPLE_FREQUENCY at: ");
         Serial.println(sampleFrequency);
@@ -250,18 +204,16 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
   
     }
     
-      if(!testingPing){
-    // printing of the message received 
-    Serial.print("MQTT: Message Metadata Received from the Sensor:");
-    for (int i = 0; i < length; i++) {
-      Serial.print((char) payload[i]);
+    if(!testingPing){
+      // printing of the message received 
+      Serial.print("MQTT: Message Metadata Received from the Sensor:");
+      for (int i = 0; i < length; i++) {
+        Serial.print((char) payload[i]);
+        }
+      Serial.println();
+      Serial.println("-----------------------");
       }
-    Serial.println();
-    Serial.println("-----------------------");
-      }
-    
     }
-   // end if
  }
 
 // ------------- MQTT Setup -----------------
@@ -287,9 +239,7 @@ void MQTTSetup(){
      }
     }
 }
-
 // ------------ CoAP Functions ------------
-
 void CoAPSetup(){
     server.SetPacketProvider(udpProvider);
     //coapClient.Start(proxyIp, 5683);
@@ -343,9 +293,7 @@ void setup() {
 
 
 void loop() {
-  // loop for mqtt subscribe 
-  client.loop();
-  
+  client.loop(); // MQTT loop
   // possible reconnection
    if(WiFi.status() != WL_CONNECTED){
       WiFi.reconnect();
@@ -355,11 +303,9 @@ void loop() {
       }
       Serial.println("WiFi reconnect");
     }
-    
-  // RSS update
-  RSS = WiFi.RSSI();
+   
+  RSS = WiFi.RSSI(); // RSS update
 
-  // Data printing 
   if(!testingPing){
   Serial.println("--------- Data -----------");
   Serial.print("WiFi RSS Strength: ");
@@ -374,10 +320,8 @@ void loop() {
   if(temp=='1'|| temp=='2' || temp=='3'){
     previous_prot = prot_mode;
     prot_mode = temp;
-  
     // preparing buffers for String conversation
     char buffer_dt[sizeof(docp)];
-    
     if(temp=='1'){
       docp["id"] = id;
       docp["protocol"] = 0;
@@ -391,7 +335,6 @@ void loop() {
       serializeJson(docp, buffer_dt);
       client.publish(topic_topic_switch, buffer_dt,2);
     }
-
   }else if(temp == 't'&& prot_mode == '1'){ // starting testing 
     testingPing = !testingPing; // change at not
     Serial.println("--------------------------------------------------");
@@ -403,12 +346,10 @@ void loop() {
     sumTime = 0;
     previousTime = 0;
     temp = previous_prot;
-    
-  }else if (temp=='s'){ //hard stopping of the testing protocol
+  } else if (temp=='s'){ //hard stopping of the testing protocol
     testingPing = false;
     looping = true;
   }
-
   if(timeCounter>5&&testingPing){
     testingPing=false;
     Serial.println("--------------------------------------------------");
@@ -416,29 +357,20 @@ void loop() {
     Serial.print(avg);
     Serial.println(" ms");
     char buffer_avg[sizeof(docT)];
-
     docT["id"]=id;
     docT["time"]= avg;
     serializeJson(docT, buffer_avg);
-    client.publish(topic_send_RTT_result, buffer_avg,2);
-    
+    client.publish(topic_send_RTT_result, buffer_avg,2);   
     Serial.println("--------------------------------------------------");
   }
-    
   // analogue reading from gas sensor
  int gas = analogRead(SMOKE);
-
   // calculating Average Gas Value
   for(int c=3; c>=0; c--){
     gas_values[c+1] = gas_values[c];
   }
-
-
   // retrieves and save gas values temporally for 5 loops
   gas_values[0] = gas;
-  
-  
- 
   int sum = 0;
    for(int c=0; c<5; c++){
     sum+=gas_values[c];
@@ -451,7 +383,6 @@ void loop() {
     avg_gas = sum/5;
   }
 
-
   // defining value of AQI based on the average value
   if(avg_gas <= MAX_GAS_VALUE){
     AQI = 2;
@@ -463,16 +394,11 @@ void loop() {
 
   // read DHT22 sensors
   float humidity = dht_sensor.readHumidity(); 
-  float temperature = dht_sensor.readTemperature(); 
-
-  
+  float temperature = dht_sensor.readTemperature();  
   if(!testingPing){
-
   // printing AQI
   Serial.print("AQI:");
   Serial.println(AQI);
-
-  // print of the sensor values
   Serial.print("Gas sensor: ");
   Serial.println(gas); 
   Serial.print("Temperature in Celsius: ");
@@ -494,8 +420,7 @@ void loop() {
   doc["ip"]=WiFi.localIP();
   if(prot_mode=='1')doc["protocol"]= 0;
   if(prot_mode=='2')doc["protocol"]= 1; 
-
-
+  
   // preparing buffers for String conversation
   serializeJson(doc, buffer_ff);
 
@@ -532,6 +457,4 @@ void loop() {
 
   // loop the wifi client
   client.loop();
-
-  
 }
