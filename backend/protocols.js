@@ -19,11 +19,11 @@ const producerTestMqtt = 'sensor/1175/test-mqtt'
 const consumerTestMqtt = 'sensor/1175/test-mqtt-res'
 const switchTopic = "sensor/1175/switchRequest"
 const switchResponse = "sensor/1175/switch"
-const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
+const latency = 500 // latency for operation in the proxy
 
 // session sensors
 var sensors = {}
-var interval = 1000
+var requestCoAP = {} // id : requestID
 
 
 // Influx Data
@@ -163,22 +163,86 @@ forwardData = (data) => {
  */
 const switchMode = (request, response) => {
   console.log('Invoke Switching Mode...')
-  let idBody = request.body.id
-  let protocolBody = request.body.protocol
-  let ipBody = request.body.ip
+  let id = request.body.id
+  let protocol = request.body.protocol
+  let ip = request.body.ip
 
-  if (protocolBody == 0 || protocolBody == 1) {
+  if (protocol == 0 || protocol == 1) {
     var switched;
-    if (protocolBody == 0) {
+    if (protocol == 0) {
       switched = 1
+      requestCoAP[id] = setInterval(()=>{
+        if (sensors[id] != undefined) {
+          if (sensors[id]['protocol'] == 1) {
+            console.log('Send request.')
+            const req = coap.request('coap://' + sensors[id]['ip'] + '/data', { observe: true })
+            if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+              if(sensors[id]['counterTest'] == undefined){
+                // first request
+                sensors[id]['numPackage'] = 1
+                sensors[id]['counterTest'] = 0
+                sensors[id]['packagesTime'] = Date.now()
+                sensors[id]['testingParams'] = [0, 0, 0, 0, 0] // list of time in the response
+                sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() // first request, got the first response
+              } else {
+                // other requests
+                sensors[id]['numPackage'] += 1
+                sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() // last request for response i
+                
+              }
+            }
+            req.on('response', (res) => {
+              now = Date.now() 
+              processJSON(JSON.parse(res.payload.toString()))
+              if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+                if(sensors[id]['counterTest'] != undefined && sensors[id]['testingParams'] != undefined &&
+                sensors[id]['counterTest'] < 5 && sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+                  sensors[id]['testingParams'][sensors[id]['counterTest']] = now - sensors[id]['testingParams'][sensors[id]['counterTest']]
+                  sensors[id]['counterTest'] = sensors[id]['counterTest'] + 1 // 1 to n 
+    
+                } else if(sensors[id]['counterTest'] != undefined &&  sensors[id]['testingParams'] != undefined && sensors[id]['counterTest'] == 5){
+                  let numPackage = sensors[id]['numPackage']
+                  sensors[id]['testingParams'][sensors[id]['counterTest']] = now - sensors[id]['testingParams'][sensors[id]['counterTest']]
+                  sensors[id]['counterTest'] = undefined
+                  sensors[id]['packageTime'] = undefined
+                  sensors[id]['numPackage'] = undefined
+                  let array = sensors[id]['testingParams']
+                  let sum = 0
+                  for(let i = 0; i < array.length; i++){
+                    sum +=array[i]
+                  }
+                  sensors[id]['coap'] = Math.floor(sum / 5)
+                  console.log('Package sent: ' + numPackage)
+                  sensors[id]['packageLoss'] = Math.round(5 * 100 / numPackage, 2)
+                  console.log('Latency on communication: ' + sensors[id]['coap'])
+                  console.log('CoAP Loss Package: ' + sensors[id]['packageLoss'] + " %")
+                  sensors[id]['mode'] = 0
+                }
+                  
+              }
+              res.on('end', () => {
+                //
+              })
+            })
+    
+            req.on('error', (e) => {
+              // do nothing
+            })
+            req.end()
+          }
+        }
+      }, sensors[id]['sampleFrequency'])
+
     } else {
       switched = 0
+      clearInterval(requestCoAP[id])
+      requestCoAP[id] = undefined
     }
 
     // get data from the body
     let json = {
-      id: idBody,
-      ip: ipBody,
+      id: id,
+      ip: ip,
       protocol: switched
     }
 
@@ -188,29 +252,18 @@ const switchMode = (request, response) => {
         console.log('Error during publishing on ' + switchTopic)
       } else {
         console.log('Publish successful on ' + switchTopic)
-
       }
     })
   } else {
     console.log('Switch Mode: Error, protocol value are not acceptable.')
     response.status(500).json("")
   }
-
-  // prepare response to update the front-end status
-  let responseJson = {
-    id: idBody,
-    ip: ipBody,
-    protocol: switched
-  }
   // update sensor session data
   if (checkId(id)) {
     sensors[id]['protocol'] = switched
   }
-
-
-
   // send response
-  response.status(200).json(JSON.stringify(responseJson))
+  response.status(200).json(JSON.stringify(json))
 }
 
 
@@ -249,7 +302,8 @@ const testCoAP = (request, response) => {
       }
     }
   );
-  response.status(200).json("")
+  let id = request.body.id
+  setTimeout(response.status(200).json(""), sensors[id]['sampleFrequency'] + latency)
 }
 
 
@@ -336,12 +390,14 @@ const processJSON = (data) => {
     if (!checkId(idJSON)) {
       sensors[idJSON] = {
         id: idJSON, // internal key
-        ip: data['ip'],
-        mqtt: "",
-        coap: "",
-        protocol: data['protocol'],
-        sampleFrequency: data['samF'],
-        lastTime: Math.floor(Date.now() / 1000)
+        ip: data['ip'], // ip
+        mqtt: "", // MQTT ping testing
+        coap: "", // CoAP ping testing
+        mqttPackages: "", // MQTT package loss
+        coapPackages: "", // CoAP package loss
+        protocol: data['protocol'], // protocol
+        sampleFrequency: data['samF'], // current sample frequency
+        lastTime: Date.now() // timestamp in ms
       }
 
       console.log('Sending ' + idJSON + ' on ' + producerTestMqtt)
@@ -407,65 +463,6 @@ const getSensorsList = () => {
   return sensors
 }
 
-
-setInterval(() => {
-  Object.keys(sensors).forEach((id) => {
-    if (sensors[id] != undefined) {
-      if (sensors[id]['protocol'] == 1) {
-        const req = coap.request('coap://' + sensors[id]['ip'] + '/data', { observe: true })
-        if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
-          if(sensors[id]['counterTest'] == undefined){
-            // first request
-            sensors[id]['counterTest'] = 0
-            sensors[id]['testingParams'] = [0, 0, 0, 0, 0] // list of time in the response
-            sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() // first request, got the first response
-          } else {
-            // other requests
-            sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() // last request for response i
-            
-          }
-        }
-
-
-        req.on('response', (res) => {
-          // res.pipe(process.stdout)
-          processJSON(JSON.parse(res.payload.toString()))
-          if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
-            if(sensors[id]['counterTest'] != undefined && sensors[id]['testingParams'] != undefined &&
-            sensors[id]['counterTest'] < 5 && sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
-              // one of the internal testing detected.
-              // set the delay on the response i
-              // x = x - last_y
-              sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() - sensors[id]['testingParams'][sensors[id]['counterTest']]
-              sensors[id]['counterTest'] = sensors[id]['counterTest'] + 1 // counter is != 0
-
-            } else if(sensors[id]['counterTest'] != undefined &&  sensors[id]['testingParams'] != undefined && sensors[id]['counterTest'] == 5){
-              // we got 5 response
-              sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() - sensors[id]['testingParams'][sensors[id]['counterTest']]
-              sensors[id]['counterTest'] = undefined
-              let array = sensors[id]['testingParams']
-              let sum = 0
-              for(let i = 0; i < array.length; i++){
-                sum +=array[i]
-              }
-              sensors[id]['coap'] = Math.floor(sum / 5)
-              sensors[id]['mode'] = 0
-            }
-              
-          }
-          res.on('end', () => {
-            //
-          })
-        })
-
-        req.on('error', (e) => {
-          // do nothing
-        })
-        req.end()
-      }
-    }
-  })
-}, interval)
 
 // module export 
 module.exports = {
