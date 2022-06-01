@@ -213,9 +213,10 @@ const switchMode = (request, response) => {
                   }
                   sensors[id]['coap'] = Math.floor(sum / 5)
                   console.log('Package sent: ' + numPackage)
-                  sensors[id]['packageLoss'] = Math.round(5 * 100 / numPackage, 2)
+                  console.log('Package received: 5')
+                  sensors[id]['packageLossCoAP'] = 100 - Math.round(5 * 100 / numPackage, 2)
                   console.log('Latency on communication: ' + sensors[id]['coap'])
-                  console.log('CoAP Loss Package: ' + sensors[id]['packageLoss'] + " %")
+                  console.log('CoAP Loss Package: ' + sensors[id]['packageLossCoAP'] + " %")
                   sensors[id]['mode'] = 0
                 }
                   
@@ -394,8 +395,8 @@ const processJSON = (data) => {
         ip: data['ip'], // ip
         mqtt: "", // MQTT ping testing
         coap: "", // CoAP ping testing
-        mqttPackages: "", // MQTT package loss
-        coapPackages: "", // CoAP package loss
+        packageLossMQTT: "", // MQTT package loss
+        packageLossCoAP: "", // CoAP package loss
         protocol: data['protocol'], // protocol
         sampleFrequency: data['samF'], // current sample frequency
         lastTime: Date.now() // timestamp in ms

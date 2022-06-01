@@ -289,7 +289,7 @@
                             <tr>
                                 <th scope="col">#</th>
                                 <th scope="col">Sensor ID</th>
-                                <th scope="col">Performance</th>
+                                <th scope="col">Average Delay and PDR</th>
                                 <th scope="col">Protocol</th>
                                 <th scope="col">IP</th>
                                 <th scope="col">Testing</th>
@@ -300,7 +300,7 @@
                         </tbody>
                     </table>
                     <!-- Update Sensor ids list -->
-                    <button id="update-button" type="submit" class="btn btn-danger mb-2">Update Sensors Ids</button>
+                    <button id="update-button" type="submit" class="btn btn-danger mb-2">Update Sensors Table</button>
                 </div>
             </div> <!-- end col -->
         </div> <!-- end row -->
@@ -357,6 +357,29 @@
                 success: function (data) {
                     // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
                     // after that get the content and updates rows of the table
+                    let timerInterval
+                    Swal.fire({
+                        title: 'Operation in progress',
+                        html: 'Waiting for <b></b> ms',
+                        timer: data[id]['sampleFrequency'] * 8,
+                        timerProgressBar: true,
+                        didOpen: () => {
+                            Swal.showLoading()
+                            const b = Swal.getHtmlContainer().querySelector('b')
+                            timerInterval = setInterval(() => {
+                                b.textContent = Swal.getTimerLeft()
+                            }, 100)
+                        },
+                        willClose: () => {
+                            clearInterval(timerInterval)
+                        }
+                    }).then((result) => {
+                        /* Read more about handling dismissals below */
+                        if (result.dismiss === Swal.DismissReason.timer) {
+                            console.log('Completed! Update the sensor data to visualize changing!')
+                            updateRowData()
+                        }
+                    })
 
                 }
             });
@@ -441,7 +464,7 @@
                         tdTest.innerHTML = " - "
                     } else {
                         console.log('Adding elements on TestCoap')
-                        tdTest.innerHTML = data[id]['coap'] + " ms"
+                        tdTest.innerHTML = data[id]['coap'] + "ms; " + data[id]['packageLossCoAP'] + "%"
                     }
                 }
 
