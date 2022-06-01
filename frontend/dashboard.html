@@ -375,6 +375,30 @@
                 success: function (data) {
                     // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
                     // after that get the content and updates rows of the table
+                    console.log('Request to test-mqtt response: OK')
+                    let timerInterval
+                    Swal.fire({
+                        title: 'Operation in progress',
+                        html: 'Waiting for <b></b> ms',
+                        timer: data[id]['sampleFrequency'],
+                        timerProgressBar: true,
+                        didOpen: () => {
+                            Swal.showLoading()
+                            const b = Swal.getHtmlContainer().querySelector('b')
+                            timerInterval = setInterval(() => {
+                                b.textContent = Swal.getTimerLeft()
+                            }, 100)
+                        },
+                        willClose: () => {
+                            clearInterval(timerInterval)
+                        }
+                    }).then((result) => {
+                        /* Read more about handling dismissals below */
+                        if (result.dismiss === Swal.DismissReason.timer) {
+                            console.log('Completed!')
+                            updateRowData()
+                        }
+                    })
                 }
             });
         }
@@ -385,7 +409,7 @@
             let child = tBody.lastElementChild;
             console.log('Length: ' + length)
             ids = Object.keys(data)
-           
+
             while (child) {
                 tBody.removeChild(child);
                 child = tBody.lastElementChild;
@@ -446,6 +470,30 @@
                             success: function (data) {
                                 // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
                                 // after that get the content and updates rows of the table
+                                console.log('Request to test-mqtt response: OK')
+                                let timerInterval
+                                Swal.fire({
+                                    title: 'Operation in progress',
+                                    html: 'Waiting for <b></b> ms',
+                                    timer: data[id]['sampleFrequency'],
+                                    timerProgressBar: true,
+                                    didOpen: () => {
+                                        Swal.showLoading()
+                                        const b = Swal.getHtmlContainer().querySelector('b')
+                                        timerInterval = setInterval(() => {
+                                            b.textContent = Swal.getTimerLeft()
+                                        }, 100)
+                                    },
+                                    willClose: () => {
+                                        clearInterval(timerInterval)
+                                    }
+                                }).then((result) => {
+                                    /* Read more about handling dismissals below */
+                                    if (result.dismiss === Swal.DismissReason.timer) {
+                                        console.log('Completed!')
+                                        updateRowData()
+                                    }
+                                })
                             }
                         });
 
@@ -468,7 +516,29 @@
                             success: function (data) {
                                 // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
                                 // after that get the content and updates rows of the table
-
+                                let timerInterval
+                                Swal.fire({
+                                    title: 'Operation in progress',
+                                    html: 'Waiting for <b></b> ms',
+                                    timer: data[id]['sampleFrequency'] * 8,
+                                    timerProgressBar: true,
+                                    didOpen: () => {
+                                        Swal.showLoading()
+                                        const b = Swal.getHtmlContainer().querySelector('b')
+                                        timerInterval = setInterval(() => {
+                                            b.textContent = Swal.getTimerLeft()
+                                        }, 100)
+                                    },
+                                    willClose: () => {
+                                        clearInterval(timerInterval)
+                                    }
+                                }).then((result) => {
+                                    /* Read more about handling dismissals below */
+                                    if (result.dismiss === Swal.DismissReason.timer) {
+                                        console.log('Completed! Update the sensor data to visualize changing!')
+                                        updateRowData()
+                                    }
+                                })
                             }
                         });
                     })
@@ -484,7 +554,6 @@
                 }
 
                 switchButton.addEventListener('click', (e) => {
-                    // To-DO: Switching mode
                     jsonData = {
                         id: id,
                         ip: data[id]['ip'],
@@ -499,6 +568,9 @@
                         success: function (data) {
                             // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
                             // after that get the content and updates rows of the table
+                            let timerInterval
+
+
                             console.log('Protocol changed')
                             console.log(data)
                             data = JSON.parse(data)
@@ -523,7 +595,29 @@
                                         success: function (data) {
                                             // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
                                             // after that get the content and updates rows of the table
-
+                                            let timerInterval
+                                            Swal.fire({
+                                                title: 'Operation in progress',
+                                                html: 'Waiting for <b></b> ms',
+                                                timer: data[id]['sampleFrequency'] * 5,
+                                                timerProgressBar: true,
+                                                didOpen: () => {
+                                                    Swal.showLoading()
+                                                    const b = Swal.getHtmlContainer().querySelector('b')
+                                                    timerInterval = setInterval(() => {
+                                                        b.textContent = Swal.getTimerLeft()
+                                                    }, 100)
+                                                },
+                                                willClose: () => {
+                                                    clearInterval(timerInterval)
+                                                }
+                                            }).then((result) => {
+                                                /* Read more about handling dismissals below */
+                                                if (result.dismiss === Swal.DismissReason.timer) {
+                                                    console.log('Completed!')
+                                                    updateRowData()
+                                                }
+                                            })
                                         }
                                     });
                                 })
@@ -533,6 +627,7 @@
                                 let actButton = document.getElementById('act-' + id)
                                 actButton.value = "Test MQTT"
                                 actButton.addEventListener('click', (e) => {
+
                                     jsonData = {
                                         id: data[id], // no need IP
                                     }
@@ -543,22 +638,62 @@
                                         contentType: "application/json; charset=utf-8",
                                         traditional: true,
                                         success: function (data) {
-                                            // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
-                                            // after that get the content and updates rows of the table
+                                            console.log('Request to test-mqtt response: OK')
+                                            let timerInterval
+                                            Swal.fire({
+                                                title: 'Operation in progress',
+                                                html: 'Waiting for <b></b> ms',
+                                                timer: data[id]['sampleFrequency'],
+                                                timerProgressBar: true,
+                                                didOpen: () => {
+                                                    Swal.showLoading()
+                                                    const b = Swal.getHtmlContainer().querySelector('b')
+                                                    timerInterval = setInterval(() => {
+                                                        b.textContent = Swal.getTimerLeft()
+                                                    }, 100)
+                                                },
+                                                willClose: () => {
+                                                    clearInterval(timerInterval)
+                                                }
+                                            }).then((result) => {
+                                                /* Read more about handling dismissals below */
+                                                if (result.dismiss === Swal.DismissReason.timer) {
+                                                    console.log('Completed!')
+                                                    updateRowData()
+                                                }
+                                            })
+
                                         }
                                     });
 
                                 })
                             }
-                            // update values
-                            $.get("get-sensor-data", function (data) {
-                                console.log(data)
-                                addRow(data)
-                            });
-
 
                         }
                     });
+
+                    Swal.fire({
+                        title: 'Operation in progress',
+                        html: 'Waiting for <b></b>',
+                        timer: data[id]['sampleFrequency'],
+                        timerProgressBar: true,
+                        didOpen: () => {
+                            Swal.showLoading()
+                            const b = Swal.getHtmlContainer().querySelector('b')
+                            timerInterval = setInterval(() => {
+                                b.textContent = Swal.getTimerLeft()
+                            }, 100)
+                        },
+                        willClose: () => {
+                            clearInterval(timerInterval)
+                        }
+                    }).then((result) => {
+                        /* Read more about handling dismissals below */
+                        if (result.dismiss === Swal.DismissReason.timer) {
+                            console.log('Completed!')
+                            updateRowData()
+                        }
+                    })
                 })
                 tdAct.appendChild(button)
                 tdAct.setAttribute('id', 'act-' + id)
@@ -584,6 +719,12 @@
                 addRow(data)
             });
         })
+
+        const updateRowData = () => {
+            $.get("get-sensor-data", function (data) {
+                addRow(data)
+            });
+        }
 
         const setupButton = document.getElementById('setup-button');
         setupButton.addEventListener('click', (e) => {

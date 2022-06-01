@@ -18,7 +18,7 @@
 #define LNG 11.353 // Warning: need to modify it in case of multisensor GPS simulation
 #define INIT_MIN_GAS 4095 // initial setup for gas playground
 #define INIT_MAX_GAS 500 // initial setup for gas playground
-#define INIT_SAMPLE_FREQ // initial setup for sensors 
+#define INIT_SAMPLE_FREQ 2500 // initial setup for sensors 
 #define INIT_AQI 2 // initial setup for gas playground
 #define INIT_RSS 0 // initial setup for WiFi analysis
 

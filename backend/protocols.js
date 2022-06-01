@@ -243,7 +243,8 @@ const switchMode = (request, response) => {
     let json = {
       id: id,
       ip: ip,
-      protocol: switched
+      protocol: switched,
+      sampleFrequency : sensors[id]['sampleFrequency']
     }
 
     // publish data on sensors network
@@ -256,14 +257,14 @@ const switchMode = (request, response) => {
     })
   } else {
     console.log('Switch Mode: Error, protocol value are not acceptable.')
-    response.status(500).json("")
+    response.status(500).json(json)
   }
   // update sensor session data
   if (checkId(id)) {
     sensors[id]['protocol'] = switched
   }
   // send response
-  response.status(200).json(JSON.stringify(json))
+  response.status(200).json(json)
 }
 
 
@@ -279,7 +280,7 @@ const testCoAP = (request, response) => {
   console.log('Sending /GET request to ' + ip)
   sensors[id]['mode'] = 1
   console.log('CoAP: Waiting on ' + id + '...')
-  response.status(200).json("")
+  response.status(200).json(sensors)
 }
 
 /**
@@ -302,8 +303,8 @@ const testCoAP = (request, response) => {
       }
     }
   );
-  let id = request.body.id
-  setTimeout(response.status(200).json(""), sensors[id]['sampleFrequency'] + latency)
+
+  response.status(200).json(sensors)
 }
 
 
@@ -363,7 +364,7 @@ const updateSetup = (request, response) => {
         }
       }
     }
-    response.json("")
+    response.status(200).json(sensors)
 
   }
 }
@@ -374,7 +375,7 @@ const updateSetup = (request, response) => {
  * @param response is the json of sensors 
  */
 const getSensorData = (request, response) => {
-  console.log(sensors)
+  // push session data to the front-end 
   response.json(sensors)
 }
 
@@ -385,7 +386,7 @@ const getSensorData = (request, response) => {
  * @param protocol is the protocol used to the sensor
  */
 const processJSON = (data) => {
-  idJSON = data['id']
+  let idJSON = data['id']
   if (idJSON != undefined && idJSON != null) {
     if (!checkId(idJSON)) {
       sensors[idJSON] = {
