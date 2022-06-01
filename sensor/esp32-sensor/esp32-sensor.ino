@@ -19,7 +19,6 @@ const int capacity = JSON_OBJECT_SIZE(192);
 StaticJsonDocument<capacity> doc;
 // json for switching protocol
 StaticJsonDocument<capacity> docp;
-
 StaticJsonDocument<capacity> docT;
 
 
@@ -32,7 +31,7 @@ bool looping = true;
 //Declare our CoAP client and the packet handler
 Thing::CoAP::Server server;
 Thing::CoAP::ESP::UDPPacketProvider udpProvider;
-
+char buffer_ff[sizeof(doc)];
 // setting metadata
 long int SAMPLE_FREQUENCY = 10000;
 int MIN_GAS_VALUE = 4095;
@@ -62,10 +61,10 @@ char previous_prot = '1';
 char temp;
 
 // WiFi Data
- const char *ssid = "iPhone"; // Warning: enter your WiFi name
- const char *password = "19951995";  // Warning: enter WiFi password
-//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+//const char *ssid = "iPhone"; // Warning: enter your WiFi name
+//const char *password = "19951995";  // Warning: enter WiFi password
+const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 
 // Proxy Data
@@ -299,7 +298,6 @@ void CoAPSetup(){
       Serial.println("GET Request received for endpoint 'data'");
 
       // preparing buffers for String conversation
-       char buffer_ff[sizeof(doc)];
       serializeJson(doc, buffer_ff);
 
        //Return the current state of our data
@@ -499,7 +497,6 @@ void loop() {
 
 
   // preparing buffers for String conversation
-  char buffer_ff[sizeof(doc)];
   serializeJson(doc, buffer_ff);
 
   // verify protocol mode and execute the sending

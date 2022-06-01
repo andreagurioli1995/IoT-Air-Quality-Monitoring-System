@@ -23,7 +23,7 @@ const fields = ["gas", "temp", "hum", "aqi", "rss", "id", "gps"]
 
 // session sensors
 var sensors = {}
-var requestsCoAP = []
+var interval = 1000
 
 
 // Influx Data
@@ -81,7 +81,7 @@ init = () => {
     if (topic == topicMqtt) {
       console.log('MQTT: Trigger message on ' + topicMqtt)
       data = JSON.parse(payload.toString()) // stringify is used for different encoding string
-      processJSON(data, 'MQTT')
+      processJSON(data)
     }
 
     if (topic == consumerTestMqtt) {
@@ -330,7 +330,7 @@ const getSensorData = (request, response) => {
  * @param data is data given by the sensor
  * @param protocol is the protocol used to the sensor
  */
-const processJSON = (data, protocol) => {
+const processJSON = (data) => {
   idJSON = data['id']
   if (idJSON != undefined && idJSON != null) {
     if (!checkId(idJSON)) {
@@ -412,42 +412,43 @@ setInterval(() => {
   Object.keys(sensors).forEach((id) => {
     if (sensors[id] != undefined) {
       if (sensors[id]['protocol'] == 1) {
-        console.log('Sending request on ' + 'coap://' + sensors[id]['ip'] + '/data')
         const req = coap.request('coap://' + sensors[id]['ip'] + '/data', { observe: true })
         if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
           if(sensors[id]['counterTest'] == undefined){
             // first request
             sensors[id]['counterTest'] = 0
             sensors[id]['testingParams'] = [0, 0, 0, 0, 0] // list of time in the response
-            sensors[id]['testingParams'][sensors[id]['counterTest']] = Math.floor(Date.now() / 1000) // first request, got the first response
+            sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() // first request, got the first response
           } else {
             // other requests
-            sensors[id]['testingParams'][sensors[id]['counterTest']] = Math.floor(Date.now() / 1000) // last request for response i
+            sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() // last request for response i
             
           }
         }
 
 
         req.on('response', (res) => {
-          res.pipe(process.stdout)
+          // res.pipe(process.stdout)
+          processJSON(JSON.parse(res.payload.toString()))
           if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
             if(sensors[id]['counterTest'] != undefined && sensors[id]['testingParams'] != undefined &&
             sensors[id]['counterTest'] < 5 && sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
               // one of the internal testing detected.
               // set the delay on the response i
               // x = x - last_y
-              sensors[id]['testingParams'][sensors[id]['counterTest']] = Math.floor(Date.now() / 1000) - sensors[id]['testingParams'][sensors[id]['counterTest']]
+              sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() - sensors[id]['testingParams'][sensors[id]['counterTest']]
               sensors[id]['counterTest'] = sensors[id]['counterTest'] + 1 // counter is != 0
 
             } else if(sensors[id]['counterTest'] != undefined &&  sensors[id]['testingParams'] != undefined && sensors[id]['counterTest'] == 5){
               // we got 5 response
+              sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() - sensors[id]['testingParams'][sensors[id]['counterTest']]
               sensors[id]['counterTest'] = undefined
               let array = sensors[id]['testingParams']
               let sum = 0
               for(let i = 0; i < array.length; i++){
                 sum +=array[i]
               }
-              sensors[id]['coap'] = Math.floor(sum / 5) -  (sensors[id]['sampleFrequency']*5)
+              sensors[id]['coap'] = Math.floor(sum / 5)
               sensors[id]['mode'] = 0
             }
               
@@ -464,8 +465,7 @@ setInterval(() => {
       }
     }
   })
-}, 1000)
-
+}, interval)
 
 // module export 
 module.exports = {

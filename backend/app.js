@@ -1,10 +1,19 @@
-// libraries
+/**
+ * app.js is the main module for the proxy server, it is composed by the main communications and API for the sensors and back-end components interconnection. 
+ * It provides a front-end dashboard with notification channel on socketio via HTTP and internal multicasting communication with sensors in MQTT and CoAP within 
+ * testing modes and forwarding mechanics with InfluxDB and Grafana.
+ */
+
+
+// -------- Dependencies --------
 const express = require('express')
+const http = require('http')
+const socketIo = require('socket.io')
+const protocols = require('./protocols')
 const bodyParser = require('body-parser')
 const path = require('path');
-const protocols = require('./protocols')
 const os = require('os')
-
+const { Server } = require('eiows')
 
 
 // --------- MQTT setup -------------
@@ -26,14 +35,13 @@ for (const name of Object.keys(netInterface)) {
     }
 }
 
-// Public IP
+//  -------- Public IP --------
 const host = resultsNet[Object.keys(resultsNet)[0]][0]
 
-
-
-// ----- HTTP setup -----
+// ----- Express setup -----
 
 const portHttp = 8080
+const portSocket = 2000
 const app = express()
 
 // bodyParser for POST
@@ -46,10 +54,10 @@ app.use(
 
 // static directory used to the app
 app.use(express.static(__dirname + "/public", {
-  index: false, 
-  immutable: true, 
-  cacheControl: true,
-  maxAge: "30d"
+  index: false,  // no index
+  immutable: true,  // immutable static files
+  cacheControl: true, // always in cache
+  maxAge: "30d" // death time
 }));
 
 // Http API
@@ -75,7 +83,6 @@ app.post('/switch-mode', protocols.switchMode)
 
 // listening on http
 app.listen(portHttp, host, ()=>{
-  console.log(`Listening in HTTP on ${host}:${portHttp}.`)
+  console.log(`Listening in HTTP  on ${host}:${portHttp}.`)
 })
-
 
