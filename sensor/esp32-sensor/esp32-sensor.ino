@@ -55,10 +55,10 @@ float temperature = 26.5;//temperature value for sensing phase
 float humidity = 56.3; // humidity value for sensing phase
 
 // ----------- WiFi Data -----------
-const char *ssid = "iPhone"; // Warning: enter your WiFi name
-const char *password = "19951995";  // Warning: enter WiFi password
-//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+// const char *ssid = "iPhone"; // Warning: enter your WiFi name
+// const char *password = "19951995";  // Warning: enter WiFi password
+const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // ----------- Proxy Data -----------
 // check it on https://www.whatismyip.com/it/

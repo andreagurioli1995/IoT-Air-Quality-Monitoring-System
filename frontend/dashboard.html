@@ -376,7 +376,11 @@
                     }).then((result) => {
                         /* Read more about handling dismissals below */
                         if (result.dismiss === Swal.DismissReason.timer) {
-                            console.log('Completed! Update the sensor data to visualize changing!')
+                            Swal.fire(
+                                'CoAP Testing Completed!',
+                                'Refresh Data to check updated data',
+                                'success'
+                            )
                             updateRowData()
                         }
                     })
@@ -403,7 +407,7 @@
                     Swal.fire({
                         title: 'Operation in progress',
                         html: 'Waiting for <b></b> ms',
-                        timer: data[id]['sampleFrequency'],
+                        timer: data[id]['sampleFrequency']*6,
                         timerProgressBar: true,
                         didOpen: () => {
                             Swal.showLoading()
@@ -456,8 +460,9 @@
                 if (data[id]['protocol'] == 0) {
                     if (data[id]['mqtt'] == undefined || data[id]['mqtt'] == null || data[id]['mqtt'] == "") {
                         tdTest.innerHTML = " - "
-                    } else {
-                        tdTest.innerHTML = data[id]['mqtt'] + " ms"
+                    } else {                
+                        tdTest.innerHTML = data[id]['mqtt'] + " ms; " + data[id]['packageLossMQTT'] + "%"
+                        
                     }
                 } else {
                     if (data[id]['coap'] == undefined || data[id]['coap'] == null || data[id]['coap'] == "") {
@@ -498,7 +503,7 @@
                                 Swal.fire({
                                     title: 'Operation in progress',
                                     html: 'Waiting for <b></b> ms',
-                                    timer: data[id]['sampleFrequency'],
+                                    timer: data[id]['sampleFrequency']*6,
                                     timerProgressBar: true,
                                     didOpen: () => {
                                         Swal.showLoading()
@@ -558,7 +563,11 @@
                                 }).then((result) => {
                                     /* Read more about handling dismissals below */
                                     if (result.dismiss === Swal.DismissReason.timer) {
-                                        console.log('Completed! Update the sensor data to visualize changing!')
+                                        Swal.fire(
+                                            'CoAP Testing Completed!',
+                                            'Refresh Data to check updated data',
+                                            'success'
+                                        )
                                         updateRowData()
                                     }
                                 })
@@ -637,7 +646,11 @@
                                             }).then((result) => {
                                                 /* Read more about handling dismissals below */
                                                 if (result.dismiss === Swal.DismissReason.timer) {
-                                                    console.log('Completed!')
+                                                    Swal.fire(
+                                                        'CoAP Testing Completed!',
+                                                        'Refresh Data to check updated data',
+                                                        'success'
+                                                    )
                                                     updateRowData()
                                                 }
                                             })
@@ -666,7 +679,7 @@
                                             Swal.fire({
                                                 title: 'Operation in progress',
                                                 html: 'Waiting for <b></b> ms',
-                                                timer: data[id]['sampleFrequency'],
+                                                timer: data[id]['sampleFrequency']*6,
                                                 timerProgressBar: true,
                                                 didOpen: () => {
                                                     Swal.showLoading()

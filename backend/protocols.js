@@ -13,20 +13,19 @@ const connectUrl = `mqtt://${hostMqtt}:${portMqtt}` // url for connection
 
 // connection on Mosquitto broker
 var client = null
-const setupTopic = "sensor/1175/setup"
-const topicMqtt = 'sensor/1175/data'
-const producerTestMqtt = 'sensor/1175/test-mqtt'
-const consumerTestMqtt = 'sensor/1175/test-mqtt-res'
-const switchTopic = "sensor/1175/switchRequest"
-const switchResponse = "sensor/1175/switch"
-const latency = 500 // latency for operation in the proxy
+const setupTopic = "sensor/1175/setup" // setup ESP32 metadata
+const topicMqtt = 'sensor/1175/data' // listener MQTT topic for the topic 
+const producerTestMqtt = 'sensor/1175/test-mqtt' // testing channel for MQTT
+const consumerTestMqtt = 'sensor/1175/test-mqtt-res' // response of the testing values for MQT
+const switchTopic = "sensor/1175/switchRequest" // switch response channel to swap from CoAP to MQTT or vice versa
+const switchResponse = "sensor/1175/switch" // sender channel to swap protocols
 
 // session sensors
-var sensors = {}
-var requestCoAP = {} // id : requestID
+var sensors = {} // JSON with elements of the session (pushed to the dashboard)
+var requestCoAP = {} // id : requestID for CoAP request
+var alive; // alive timing 
 
-
-// Influx Data
+// Influx Data setup (warning: token must be update with correct value from internal setting)
 const InfluxData = {
   token: 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
   host: 'localhost',
@@ -42,7 +41,6 @@ const InfluxData = {
 }
 
 // ---------- Functions for MQTT -----------
-
 init = () => {
   client = mqtt.connect(connectUrl, {
     clientId,
@@ -76,8 +74,6 @@ init = () => {
 
 
   client.on('message', (topic, payload) => {
-
-
     if (topic == topicMqtt) {
       console.log('MQTT: Trigger message on ' + topicMqtt)
       data = JSON.parse(payload.toString()) // stringify is used for different encoding string
@@ -177,6 +173,7 @@ const switchMode = (request, response) => {
             console.log('Send request.')
             const req = coap.request('coap://' + sensors[id]['ip'] + '/data', { observe: true })
             if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+              // we are in the testing mode for the coap sensor
               if(sensors[id]['counterTest'] == undefined){
                 // first request
                 sensors[id]['numPackage'] = 1
@@ -304,7 +301,10 @@ const testCoAP = (request, response) => {
       }
     }
   );
-
+  let id = request.body.id
+  if(sensors[id]['protocol'] == 0){
+    sensors[id]['mode'] = 1
+  }
   response.status(200).json(sensors)
 }
 
@@ -399,28 +399,44 @@ const processJSON = (data) => {
         packageLossCoAP: "", // CoAP package loss
         protocol: data['protocol'], // protocol
         sampleFrequency: data['samF'], // current sample frequency
-        lastTime: Date.now() // timestamp in ms
+        lastTime: Date.now(), // timestamp for the testing phase in ms
+        timestamp: Date.now(), // is equal in timestamp of the server
+        status: 1, // 1 connected, 0 disconnected
       }
-
-      console.log('Sending ' + idJSON + ' on ' + producerTestMqtt)
-      client.publish(
-        producerTestMqtt,
-        JSON.stringify({ id: idJSON }),
-        { qos: 2 }, (e) => {
-          if (e) {
-            console.log('Error during publishing on ' + producerTestMqtt + ' for sensor ' + idJSON)
-          } else {
-            console.log('MQTT: Publish correctly on ' + producerTestMqtt + " for sensor " + idJSON)
-          }
-        }
-      );
     } else {
       // update values
       sensors[idJSON]['protocol'] = data['protocol']
       sensors[idJSON]['ip'] = data['ip']
       sensors[idJSON]['sampleFrequency'] = data['samF']
+      sensors[idJSON]['timestamp'] = Date.now()
     }
 
+  }
+
+  // testing MQTT
+  if(sensors[idJSON]['protocol'] == 0 && sensors[idJSON]['mode'] == 1){
+    // MQTT testing mode is on, we need to check additional data for package delivery loss
+    if(sensors[idJSON]['counterMQTT'] == undefined){
+      sensors[idJSON]['counterMQTT'] = 1
+      sensors[idJSON]['firstTime'] = Date.now()
+    } else {
+      sensors[idJSON]['counterMQTT'] += 1
+    }
+    if(sensors[idJSON]['counterMQTT'] != undefined && sensors[idJSON]['counterMQTT'] == 5){
+      let diff = sensors[idJSON]['lastTime'] - sensors[idJSON]['firstTime']
+      let freq = sensors[idJSON]['sampleFrequency']
+      if(diff < freq){
+        // no package loss
+        sensors[idJSON]['packageLossMQTT'] = 0
+      } else {
+        // some package loss equals to the module of sampleFrequency on the diff
+        sensors[idJSON]['packageLossMQTT'] = diff % freq;
+      }
+      sensors[idJSON]['counterMQTT'] = undefined
+      sensors[idJSON]['firstTime'] = undefined
+      sensors[idJSON]['mode'] = 0
+
+    }
   }
   // checks tests 
   console.log('---------------------')
@@ -465,6 +481,50 @@ const getSensorsList = () => {
   return sensors
 }
 
+
+/**
+ * Checker for each sensor in periodic time if it is alive or not (disconnection or continuous connected)
+ */
+const initAlive = () =>{
+    alive = setInterval( ()=>{
+      let ids = Object.keys(sensors)
+      ids.forEach((value, index) =>{
+        let id = value
+        let lastTime = sensors[id]['timestamp']
+        let now = Date.now()
+        let diff = now - lastTime
+        let freq = sensors[id]['sampleFrequency']
+        if(diff > (freq * 10)){
+          if(diff <= 20000 && sensors[id]['mode'] == 1){
+            // ignore
+          } else {
+            // disconnection detected
+             delete sensors[id]
+          }
+
+        }
+      })
+    }, 1000 // periodic control indipendent from the sampleFrequency (but is also dependent in case of disconnection checking time )
+    )
+}
+
+/**
+ * Stop the interval checker for the alive on the sensors
+ * @returns boolean with the stop status
+ */
+const stopAlive = () =>{
+  if(alive){
+    try{
+      stopInterval(alive)
+    } catch(e){
+      console.log(e)
+      return false
+    }
+  }
+  return true
+}
+
+initAlive() 
 
 // module export 
 module.exports = {
