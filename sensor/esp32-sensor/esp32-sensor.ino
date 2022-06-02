@@ -73,6 +73,8 @@ const char *topic_receive_setup = "sensor/1175/setup"; // setup topic to change 
 const char *topic_receive_ping = "sensor/1175/ping"; // ping topic for the testing mod
 const char *topic_topic_switch = "sensor/1175/switch";//manda id, ip e protocollo 0 mqtt 1 per coap
 const char *topic_req_switch = "sensor/1175/switchRequest"; // richiesta di switching di protocollo
+const char *topic_req_alive = "sensor/1175/alive"; // richiesta di ping 
+const char *topic_resp_alive = "sensor/1175/aliveResponse"; // risposta ping
 const char *topic_receive_RTT = "sensor/1175/test-mqtt"; // topic to start the testing mode
 const char *topic_send_RTT_result = "sensor/1175/test-mqtt-res"; // sending the result on testing mde
 const char *data_topic = "sensor/1175/data"; // data topic to publish sensors updating
@@ -217,6 +219,27 @@ void callbackMQTT(char *topic, byte *payload, unsigned int length) {
       Serial.println("-----------------------");
       }
     }
+
+
+
+
+
+if(!strcmp(topic,topic_req_alive)){
+    
+     Serial.println("--------Am i alive?--------");
+     client.publish(topic_resp_alive, buffer_ff,2);    
+     Serial.println("---------------------------");
+
+    }
+
+
+
+
+
+
+
+
+    
  }
 
 // ------------- MQTT Setup -----------------
@@ -462,6 +485,13 @@ void loop() {
       Serial.print(timeCounter);
       Serial.println("/5");
       client.publish(topic_receive_ping, buffer_ff,0);
+    }
+    if(!looping&&testingPing){
+      if(millis()-previousTime>20000){
+        Serial.println("---Testing failed, need to restart the testing phase---");
+            testingPing = false;
+            looping = true;      
+      }
     }
 
   } else if(prot_mode == '2'){
