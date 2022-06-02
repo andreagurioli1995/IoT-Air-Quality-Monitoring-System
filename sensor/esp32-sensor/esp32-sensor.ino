@@ -268,9 +268,7 @@ void CoAPSetup(){
       Serial.println(humidity);
       Serial.println("--------------------------");
 
-
-
-      
+     
 
        //Return the current state of our data
       return Thing::CoAP::Status::Content(buffer_ff);
@@ -462,6 +460,13 @@ void loop() {
       Serial.print(timeCounter);
       Serial.println("/5");
       client.publish(topic_receive_ping, buffer_ff,0);
+    }
+    if(!looping&&testingPing){
+      if(millis()-previousTime>20000){
+        Serial.println("---Testing failed, need to restart the testing phase---");
+            testingPing = false;
+            looping = true;      
+      }
     }
 
   } else if(prot_mode == '2'){
