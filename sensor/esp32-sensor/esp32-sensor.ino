@@ -45,17 +45,20 @@ float RSS = INIT_RSS; // WiFi RSS value
 float avg_gas; // current avegare gas
 char prot_mode = '1'; // Protocol switching variables
 char previous_prot = '1'; // Previous protocol mode
-char temp; // temperature
+char temp; // temporal value for protocol shifting phase 
 char buffer_ff[sizeof(doc)]; // buffer for JSON message for CoAP and MQTT payload
 double sumTime = 0; // sum of gas values in the AQI definition
 double avg; // average of gas during the AQI 
 String id; // id of the ESP32 (connected to the internal fireware)
+int gas = INIT_MIN_GAS; //gas value for gas sensing phase
+float temperature = 26.5;//temperature value for sensing phase
+float humidity = 56.3; // humidity value for sensing phase
 
 // ----------- WiFi Data -----------
-//const char *ssid = "iPhone"; // Warning: enter your WiFi name
-//const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+const char *ssid = "iPhone"; // Warning: enter your WiFi name
+const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // ----------- Proxy Data -----------
 // check it on https://www.whatismyip.com/it/
@@ -250,6 +253,25 @@ void CoAPSetup(){
       // preparing buffers for String conversation
       serializeJson(doc, buffer_ff);
 
+      //print every SAMPLE_FREQUENCY given by the proxy
+      Serial.println("Protocol: CoAP"); 
+      Serial.println("--------- Data -----------");
+      Serial.print("WiFi RSS Strength: ");
+      Serial.println(RSS);
+      Serial.print("AQI:");
+      Serial.println(AQI);
+      Serial.print("Gas sensor: ");
+      Serial.println(gas); 
+      Serial.print("Temperature in Celsius: ");
+      Serial.println(temperature); 
+      Serial.print("Humidity value: " );
+      Serial.println(humidity);
+      Serial.println("--------------------------");
+
+
+
+      
+
        //Return the current state of our data
       return Thing::CoAP::Status::Content(buffer_ff);
     });
@@ -306,7 +328,7 @@ void loop() {
    
   RSS = WiFi.RSSI(); // RSS update
 
-  if(!testingPing){
+  if(!testingPing&&prot_mode!='2'){
   Serial.println("--------- Data -----------");
   Serial.print("WiFi RSS Strength: ");
   Serial.println(RSS);
@@ -364,7 +386,7 @@ void loop() {
     Serial.println("--------------------------------------------------");
   }
   // analogue reading from gas sensor
- int gas = analogRead(SMOKE);
+   gas = analogRead(SMOKE);
   // calculating Average Gas Value
   for(int c=3; c>=0; c--){
     gas_values[c+1] = gas_values[c];
@@ -393,9 +415,9 @@ void loop() {
   }
 
   // read DHT22 sensors
-  float humidity = dht_sensor.readHumidity(); 
-  float temperature = dht_sensor.readTemperature();  
-  if(!testingPing){
+  humidity = dht_sensor.readHumidity(); 
+  temperature = dht_sensor.readTemperature();  
+  if(!testingPing&&prot_mode!='2'){
   // printing AQI
   Serial.print("AQI:");
   Serial.println(AQI);
@@ -417,9 +439,9 @@ void loop() {
   doc["gasv"]["gas"] = gas;
   doc["gasv"]["AQI"] = AQI;
   doc["samF"] = SAMPLE_FREQUENCY;
-  doc["ip"]=WiFi.localIP();
-  if(prot_mode=='1')doc["protocol"]= 0;
-  if(prot_mode=='2')doc["protocol"]= 1; 
+  doc["ip"] = WiFi.localIP();
+  if(prot_mode=='1')doc["protocol"] = 0;
+  if(prot_mode=='2')doc["protocol"] = 1; 
   
   // preparing buffers for String conversation
   serializeJson(doc, buffer_ff);
@@ -443,7 +465,6 @@ void loop() {
     }
 
   } else if(prot_mode == '2'){
-    if(!testingPing) Serial.println("Protocol: CoAP"); 
     server.Process();  
     
   } else{
@@ -451,9 +472,9 @@ void loop() {
     Serial.println("Invalid Protocol Value: Digit 1 for MQTT or 2 for CoAP");
   }
   
-  if(!testingPing)Serial.println("--------------------------");
+  if(!testingPing&&prot_mode!='2')Serial.println("--------------------------");
   // customized delay based on the runtime setup
-  if(!testingPing)delay(SAMPLE_FREQUENCY); 
+  if(!testingPing&&prot_mode!='2')delay(SAMPLE_FREQUENCY); 
 
   // loop the wifi client
   client.loop();
