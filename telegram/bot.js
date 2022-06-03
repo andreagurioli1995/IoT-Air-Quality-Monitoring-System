@@ -1,6 +1,6 @@
 
 const { InfluxDB } = require('@influxdata/influxdb-client')
-const { Telegraf } = require('telegraf')
+const { Telegraf, Markup } = require('telegraf')
 
 const InfluxData = {
     token : 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
@@ -21,10 +21,42 @@ client  = new InfluxDB({ url: 'http://' + InfluxData.host + ":" + InfluxData.por
 bot = new Telegraf("5329123037:AAGWMTqbfvNir4KjIFpdNT7e250pfGabjF8")
 bot.start((context) => {
     console.log("InfluxDB: Alert Bot started")
-    context.reply("Alert Bot is ready for you! Type one of the following command to check measurements on one of the indoor sensors!\nYou can choose between:\n- \/temp <sensor-id>\n- \/hum <sensor-id>\n- \/gas <sensor-id>\n- \/rss <sensor-id>\n- \/aqi <sensor-id>\n ")
+    context.reply("Hello! I am an Alert Bot, in my private chat you can ask me the mean value of a bucket filtered by host. Hosts are ESP32 with DHT22 and MQ2 sensors for temperature, humidity and gas concentration." +
+    "I can provide you some additional metadata like WiFi RSS and AQI in mean view. If you want to know what can I do, click on help! " +
+    "")
 })
 
+const buttons = Markup.inlineKeyboard([
+     Markup.button.callback('Help!', 'help') 
+    ])
 
+
+bot.command('help', async (ctx) => {
+
+    ctx.reply('👋 I can help you create and manage a notification system on your personal device.\n\n' +
+    'I am an accademic product made by my lovely creators @kodetme and @andr195 for the project of Internet of Things. 👇\n\n\n'+
+
+    'COMMANDS:\nEach command is preceded by a back slash\n\n' + 
+    'help - it is the current message.\n\n' + 
+    'buckets - list the current monitored influx buckets.\n\n'  +
+    '<bucket-id> - it has one parameter equals to the id of the host to monitor, the <bucket-id> is given by \\buckets command.\n\n\n' +
+    'OWNER:\n' + 
+    'Telegram owner is @kodetme, internal configuration is open-source and consultable at the following link:')
+
+    ctx.reply("github.com/andreagurioli1995/IoT-Air-Quality-Monitoring-System")
+
+
+})
+
+bot.command('buckets', (ctx)=>{
+    ctx.reply("Actually, buckets are:\n\n" + 
+    "temp - it provides the mean temperature in celsius\n\n " +
+    "hum  - it display the mean humidity concentration\n\n " + 
+    "gas - it provides the mean gas concentration (inverse value from 4500 [low] to 0 [high])\n\n " + 
+    "rss -  it is the WiFi RSS of selected host\n\n " + 
+    "aqi - it is the mean AQI on the past 5 iteration\n " +
+    "\n\nIf you want to invoke them, you must put a back slash before and specify the id of the host")
+})
 for (const [key, value] of Object.entries(InfluxData.buckets)) {
     console.log('Creation of command /'+ key + ' to query on bucket ' + value)
     bot.command(key, context=>{
@@ -76,4 +108,4 @@ for (const [key, value] of Object.entries(InfluxData.buckets)) {
 console.log('Status: Success')
 console.log('Launching bot...')
 bot.launch()
-console.log('Bot listening on @alert_air_quality_bot on Telegram.')
+console.log('Bot listening...')
