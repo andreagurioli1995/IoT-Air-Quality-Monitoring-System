@@ -2,6 +2,7 @@ const { json } = require('express/lib/response')
 const mqtt = require('mqtt')
 const influx = require('../influxdb/InfluxManager')
 const coap = require('coap')
+const request = require('request')
 // Server session variables
 var idValues = []
 
@@ -20,12 +21,12 @@ const consumerTestMqtt = 'sensor/1175/test-mqtt-res' // response of the testing 
 const switchTopic = "sensor/1175/switchRequest" // switch response channel to swap from CoAP to MQTT or vice versa
 const switchResponse = "sensor/1175/switch" // sender channel to swap protocols
 
-// session sensors
+// ----- Session Sensors -----
 var sensors = {} // JSON with elements of the session (pushed to the dashboard)
 var requestCoAP = {} // id : requestID for CoAP request
 var alive; // alive timing 
 
-// Influx Data setup (warning: token must be update with correct value from internal setting)
+// ------ Influx Data and Manager Setup ------
 const InfluxData = {
   token: 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
   host: 'localhost',
@@ -33,12 +34,18 @@ const InfluxData = {
   port: 8086,
   buckets: {
     temp: 'temperature',
+    tempout: 'tempout',
     aqi: 'aqi',
     hum: 'humidity',
     rss: 'rss',
     gas: 'gas',
   },
 }
+// InfluxManager for query on the InfluxDB
+const influxManager = new influx.InfluxManager(InfluxData.host, InfluxData.port, InfluxData.token, InfluxData.org)
+
+// ----- OpenWeatherAPI metadata -----
+const API_WEATHER_KEY = 'dbd3b02d8958d62185d02e944cd5f522'; 
 
 // ---------- Functions for MQTT -----------
 init = () => {
@@ -167,14 +174,14 @@ const switchMode = (request, response) => {
     var switched;
     if (protocol == 0) {
       switched = 1
-      requestCoAP[id] = setInterval(()=>{
+      requestCoAP[id] = setInterval(() => {
         if (sensors[id] != undefined) {
           if (sensors[id]['protocol'] == 1) {
             console.log('Send request.')
             const req = coap.request('coap://' + sensors[id]['ip'] + '/data', { observe: true })
-            if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+            if (sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1) {
               // we are in the testing mode for the coap sensor
-              if(sensors[id]['counterTest'] == undefined){
+              if (sensors[id]['counterTest'] == undefined) {
                 // first request
                 sensors[id]['numPackage'] = 1
                 sensors[id]['counterTest'] = 0
@@ -185,19 +192,19 @@ const switchMode = (request, response) => {
                 // other requests
                 sensors[id]['numPackage'] += 1
                 sensors[id]['testingParams'][sensors[id]['counterTest']] = Date.now() // last request for response i
-                
+
               }
             }
             req.on('response', (res) => {
-              now = Date.now() 
+              now = Date.now()
               processJSON(JSON.parse(res.payload.toString()))
-              if(sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
-                if(sensors[id]['counterTest'] != undefined && sensors[id]['testingParams'] != undefined &&
-                sensors[id]['counterTest'] < 5 && sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1){
+              if (sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1) {
+                if (sensors[id]['counterTest'] != undefined && sensors[id]['testingParams'] != undefined &&
+                  sensors[id]['counterTest'] < 5 && sensors[id]['mode'] != undefined && sensors[id]['mode'] == 1) {
                   sensors[id]['testingParams'][sensors[id]['counterTest']] = now - sensors[id]['testingParams'][sensors[id]['counterTest']]
                   sensors[id]['counterTest'] = sensors[id]['counterTest'] + 1 // 1 to n 
-    
-                } else if(sensors[id]['counterTest'] != undefined &&  sensors[id]['testingParams'] != undefined && sensors[id]['counterTest'] == 5){
+
+                } else if (sensors[id]['counterTest'] != undefined && sensors[id]['testingParams'] != undefined && sensors[id]['counterTest'] == 5) {
                   let numPackage = sensors[id]['numPackage']
                   sensors[id]['testingParams'][sensors[id]['counterTest']] = now - sensors[id]['testingParams'][sensors[id]['counterTest']]
                   sensors[id]['counterTest'] = undefined
@@ -205,8 +212,8 @@ const switchMode = (request, response) => {
                   sensors[id]['numPackage'] = undefined
                   let array = sensors[id]['testingParams']
                   let sum = 0
-                  for(let i = 0; i < array.length; i++){
-                    sum +=array[i]
+                  for (let i = 0; i < array.length; i++) {
+                    sum += array[i]
                   }
                   sensors[id]['coap'] = Math.floor(sum / 5)
                   console.log('Package sent: ' + numPackage)
@@ -216,13 +223,13 @@ const switchMode = (request, response) => {
                   console.log('CoAP Loss Package: ' + sensors[id]['packageLossCoAP'] + " %")
                   sensors[id]['mode'] = 0
                 }
-                  
+
               }
               res.on('end', () => {
                 //
               })
             })
-    
+
             req.on('error', (e) => {
               // do nothing
             })
@@ -242,7 +249,7 @@ const switchMode = (request, response) => {
       id: id,
       ip: ip,
       protocol: switched,
-      sampleFrequency : sensors[id]['sampleFrequency']
+      sampleFrequency: sensors[id]['sampleFrequency']
     }
 
     // publish data on sensors network
@@ -286,7 +293,7 @@ const testCoAP = (request, response) => {
  * @param request gives the input data
  * @param response defines the response status of the request, do not contains the response data
  */
- const testMQTT = (request, response) => {
+const testMQTT = (request, response) => {
   console.log('----------------------------')
   console.log('MQTT: Sending Testing MQTT request on id: ' + request.body.id)
   console.log('----------------------------')
@@ -302,7 +309,7 @@ const testCoAP = (request, response) => {
     }
   );
   let id = request.body.id
-  if(sensors[id]['protocol'] == 0){
+  if (sensors[id]['protocol'] == 0) {
     sensors[id]['mode'] = 1
   }
   response.status(200).json(sensors)
@@ -399,6 +406,7 @@ const processJSON = (data) => {
         packageLossCoAP: "", // CoAP package loss
         protocol: data['protocol'], // protocol
         sampleFrequency: data['samF'], // current sample frequency
+        gps: data['gps'],
         lastTime: Date.now(), // timestamp for the testing phase in ms
         timestamp: Date.now(), // is equal in timestamp of the server
         status: 1, // 1 connected, 0 disconnected
@@ -408,24 +416,25 @@ const processJSON = (data) => {
       sensors[idJSON]['protocol'] = data['protocol']
       sensors[idJSON]['ip'] = data['ip']
       sensors[idJSON]['sampleFrequency'] = data['samF']
+      sensors[idJSON]['gps'] = data['gps']
       sensors[idJSON]['timestamp'] = Date.now()
     }
 
   }
 
   // testing MQTT
-  if(sensors[idJSON]['protocol'] == 0 && sensors[idJSON]['mode'] == 1){
+  if (sensors[idJSON]['protocol'] == 0 && sensors[idJSON]['mode'] == 1) {
     // MQTT testing mode is on, we need to check additional data for package delivery loss
-    if(sensors[idJSON]['counterMQTT'] == undefined){
+    if (sensors[idJSON]['counterMQTT'] == undefined) {
       sensors[idJSON]['counterMQTT'] = 1
       sensors[idJSON]['firstTime'] = Date.now()
     } else {
       sensors[idJSON]['counterMQTT'] += 1
     }
-    if(sensors[idJSON]['counterMQTT'] != undefined && sensors[idJSON]['counterMQTT'] == 5){
+    if (sensors[idJSON]['counterMQTT'] != undefined && sensors[idJSON]['counterMQTT'] == 5) {
       let diff = sensors[idJSON]['lastTime'] - sensors[idJSON]['firstTime']
       let freq = sensors[idJSON]['sampleFrequency']
-      if(diff < freq){
+      if (diff < freq) {
         // no package loss
         sensors[idJSON]['packageLossMQTT'] = 0
       } else {
@@ -445,23 +454,39 @@ const processJSON = (data) => {
 
   // Write on InfluxDB
   const influxId = data['id']
-  const influxManager = new influx.InfluxManager(InfluxData.host, InfluxData.port, InfluxData.token, InfluxData.org)
+  const gps = data['gps']
   for (const [key, value] of Object.entries(InfluxData.buckets)) {
     switch (value) {
-      case "temperature": influxManager.writeApi(influxId, value, data['temp'])
+      case "temperature": influxManager.writeApi(influxId, gps, value, data['temp'])
         break;
-      case "humidity": influxManager.writeApi(influxId, value, data['hum'])
+      case "humidity": influxManager.writeApi(influxId, gps, value, data['hum'])
         break;
-      case "gas": influxManager.writeApi(influxId, value, data['gasv']['gas'])
+      case "gas": influxManager.writeApi(influxId, gps, value, data['gasv']['gas'])
         break;
-      case "aqi": influxManager.writeApi(influxId, value, data['gasv']['AQI'])
+      case "aqi": influxManager.writeApi(influxId, gps, value, data['gasv']['AQI'])
         break;
-      case "rss": influxManager.writeApi(influxId, value, data['rss'])
+      case "rss": influxManager.writeApi(influxId, gps, value, data['rss'])
         break;
       default:
         break;
     }
   }
+
+  // Adding external temperature
+  let latitude = data.gps.lat
+  let longitude = data.gps.lng
+  var url = `http://api.openweathermap.org/data/2.5/weather?`
+  +`lat=${latitude}&lon=${longitude}&appid=${API_WEATHER_KEY}`
+  request({ url: url, json: true }, function (error, response) { 
+    if (error) { 
+        console.log('METEO-STAT: Unable to connect to Forecast API'); 
+    } 
+      else { 
+        let temp = Math.round(response.body.main.temp - 273.15,2) // convert in celsius
+        let bucket = InfluxData.buckets.tempout
+        influxManager.writeApi(influxId, gps, bucket, temp)
+    } 
+}) 
 
   console.log('---------------------')
 
@@ -485,38 +510,38 @@ const getSensorsList = () => {
 /**
  * Checker for each sensor in periodic time if it is alive or not (disconnection or continuous connected)
  */
-const initAlive = () =>{
-    alive = setInterval( ()=>{
-      let ids = Object.keys(sensors)
-      ids.forEach((value, index) =>{
-        let id = value
-        let lastTime = sensors[id]['timestamp']
-        let now = Date.now()
-        let diff = now - lastTime
-        let freq = sensors[id]['sampleFrequency']
-        if(diff > (freq * 10)){
-          if(diff <= 20000 && sensors[id]['mode'] == 1){
-            // ignore
-          } else {
-            // disconnection detected
-             delete sensors[id]
-          }
-
+const initAlive = () => {
+  alive = setInterval(() => {
+    let ids = Object.keys(sensors)
+    ids.forEach((value, index) => {
+      let id = value
+      let lastTime = sensors[id]['timestamp']
+      let now = Date.now()
+      let diff = now - lastTime
+      let freq = sensors[id]['sampleFrequency']
+      if (diff > (freq * 10)) {
+        if (diff <= 20000 && sensors[id]['mode'] == 1) {
+          // ignore
+        } else {
+          // disconnection detected
+          delete sensors[id]
         }
-      })
-    }, 1000 // periodic control indipendent from the sampleFrequency (but is also dependent in case of disconnection checking time )
-    )
+
+      }
+    })
+  }, 1000 // periodic control indipendent from the sampleFrequency (but is also dependent in case of disconnection checking time )
+  )
 }
 
 /**
  * Stop the interval checker for the alive on the sensors
  * @returns boolean with the stop status
  */
-const stopAlive = () =>{
-  if(alive){
-    try{
+const stopAlive = () => {
+  if (alive) {
+    try {
       stopInterval(alive)
-    } catch(e){
+    } catch (e) {
       console.log(e)
       return false
     }
@@ -524,7 +549,9 @@ const stopAlive = () =>{
   return true
 }
 
-initAlive() 
+// Caller for the alive function
+initAlive()
+
 
 // module export 
 module.exports = {
