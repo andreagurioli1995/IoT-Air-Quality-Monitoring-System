@@ -105,67 +105,6 @@ const InfluxData = {
     },
 }
 
-function main() {
-    // metadata from the InfluxDB configuration
-    const token = InfluxData.token
-    const org = InfluxData.org
-    const host = InfluxData.host
-    const port = InfluxData.port
-    const buckets = InfluxData.buckets
-
-
-    console.log('InfluxDB: init the manager...')
-    manager = new InfluxManager(host, port, token, org)
-    gps = {lat : 44.497, lng : 11.353}
-    data = {
-        id: '409151bfa0cc',
-        gps: { lat: 44.49700165, lng: 11.35299969 },
-        rss: -69,
-        temp: 27.10000038,
-        hum: 58.5,
-        gasv: { gas: 150, AQI: 2 },
-        samF: 3000,
-        ip: '192.168.1.9',
-        protocol: 0
-      }
-
-    clientId = data['id']
-
-
-    for (const [key, value] of Object.entries(InfluxData.buckets)) {
-        console.log('Writing on bucket: ' + value)
-        switch (value) {
-          case "temperature": manager.writeApi(clientId, gps, value, data['temp'])
-            break;
-          case "humidity": manager.writeApi(clientId, gps, value, data['hum'])
-            break;
-          case "gas": manager.writeApi(clientId, gps, value, data['gasv']['gas'])
-            break;
-          case "aqi": manager.writeApi(clientId, gps, value, data['gasv']['AQI'])
-            break;
-          case "rss": manager.writeApi(clientId, gps, value, data['rss'])
-            break;
-          default:
-            break;
-        }
-      }
-
-    /*
-    for (const [key, value] of Object.entries(buckets)) {
-        let query = `
-        from(bucket: "${value}") |> range(start: -10m) |> movingAverage(n: 5)
-        ` // example of query
-        console.log('InfluxDB: Starting query: ' + query + "\n")
-        //manager.queryApi(query)
-        res = manager.queryMeanApi(value, "409151bfa0cc", gps)
-        console.log(res)
-    }
-    */
-
-    console.log('InfluxDB: Ending main...')
-}
-
-//main()
 
 module.exports = {
     InfluxManager,
