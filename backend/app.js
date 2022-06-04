@@ -66,6 +66,14 @@ app.get("/", (request, response)=>{
   response.sendFile(path.join(__dirname, '../frontend/dashboard.html'));
 })
 
+app.get('/map', (request, response) =>{
+  response.sendFile(path.join(__dirname, '../frontend/map.html'))
+})
+
+app.get('/grafana', (request, response) =>{
+  response.sendFile(path.join(__dirname, '../frontend/grafana.html'))
+})
+
 // Retrieve connected sensors ids
 app.get('/get-sensor-data', protocols.getSensorData)
 

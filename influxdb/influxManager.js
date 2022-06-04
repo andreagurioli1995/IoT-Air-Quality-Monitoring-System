@@ -92,7 +92,7 @@ class InfluxManager {
 }
 
 const InfluxData = {
-    token : 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
+    token : '9AdxVQDATLyxLPioNTeTLYpCqt2ksQ5TrSyTfIV0wGtU5El7v4Fz-lyzsTWUC56PlJUpllucqDg-hjlXuLMjYQ==',
     host : 'localhost',
     org : 'iot-org',
     port : 8086,
