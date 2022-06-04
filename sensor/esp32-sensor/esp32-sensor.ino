@@ -14,8 +14,8 @@
 
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
-#define LAT 44.497 // Warning: need to modify it in case of multisensor GPS simulation
-#define LNG 11.353 // Warning: need to modify it in case of multisensor GPS simulation
+#define LAT 44.597 // Warning: need to modify it in case of multisensor GPS simulation
+#define LNG 11.253 // Warning: need to modify it in case of multisensor GPS simulation
 #define INIT_MIN_GAS 4095 // initial setup for gas playground
 #define INIT_MAX_GAS 500 // initial setup for gas playground
 #define INIT_SAMPLE_FREQ 2500 // initial setup for sensors 
@@ -55,10 +55,10 @@ float temperature = 26.5;//temperature value for sensing phase
 float humidity = 56.3; // humidity value for sensing phase
 
 // ----------- WiFi Data -----------
-// const char *ssid = "iPhone"; // Warning: enter your WiFi name
-// const char *password = "19951995";  // Warning: enter WiFi password
-const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+ const char *ssid = "iPhone"; // Warning: enter your WiFi name
+ const char *password = "19951995";  // Warning: enter WiFi password
+//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // ----------- Proxy Data -----------
 // check it on https://www.whatismyip.com/it/
