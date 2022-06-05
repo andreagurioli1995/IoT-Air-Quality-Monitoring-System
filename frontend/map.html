@@ -230,8 +230,9 @@
                             <span class="nav_name">Dashboard</span> </a>
                         <a href="/map" class="nav_link active"> <i class='bx bx-map-pin nav_icon'></i> <span
                                 class="nav_name">Sensor Mapping</span> </a>
-                        <a href="http://localhost:3000/d/7E2WoCunk/grafana-dashboard?orgId=1&refresh=5s" class="nav_link"> <i class='bx bx-bar-chart-alt-2 nav_icon'></i> <span
-                                class="nav_name">Data Visualization</span> </a>
+                        <a href="http://localhost:3000/d/7E2WoCunk/grafana-dashboard?orgId=1&refresh=5s"
+                            class="nav_link"> <i class='bx bx-bar-chart-alt-2 nav_icon'></i> <span class="nav_name">Data
+                                Visualization</span> </a>
                     </div>
                 </div>
             </nav>
@@ -252,66 +253,70 @@
 
             // sidebar javascript 
             document.addEventListener("DOMContentLoaded", function (event) {
-            const showNavbar = (toggleId, navId, bodyId, headerId) => {
-                const toggle = document.getElementById(toggleId),
-                    nav = document.getElementById(navId),
-                    bodypd = document.getElementById(bodyId),
-                    headerpd = document.getElementById(headerId)
+                const showNavbar = (toggleId, navId, bodyId, headerId) => {
+                    const toggle = document.getElementById(toggleId),
+                        nav = document.getElementById(navId),
+                        bodypd = document.getElementById(bodyId),
+                        headerpd = document.getElementById(headerId)
 
-                // Validate that all variables exist
-                if (toggle && nav && bodypd && headerpd) {
-                    toggle.addEventListener('click', () => {
-                        // show navbar
-                        nav.classList.toggle('show')
-                        // change icon
-                        toggle.classList.toggle('bx-x')
-                        // add padding to body
-                        bodypd.classList.toggle('body-pd')
-                        // add padding to header
-                        headerpd.classList.toggle('body-pd')
-                    })
+                    // Validate that all variables exist
+                    if (toggle && nav && bodypd && headerpd) {
+                        toggle.addEventListener('click', () => {
+                            // show navbar
+                            nav.classList.toggle('show')
+                            // change icon
+                            toggle.classList.toggle('bx-x')
+                            // add padding to body
+                            bodypd.classList.toggle('body-pd')
+                            // add padding to header
+                            headerpd.classList.toggle('body-pd')
+                        })
+                    }
                 }
-            }
-            showNavbar('header-toggle', 'nav-bar', 'body-pd', 'header')
-            const linkColor = document.querySelectorAll('.nav_link')
-            function colorLink() {
-                if (linkColor) {
-                    linkColor.forEach(l => l.classList.remove('active'))
-                    this.classList.add('active')
+                showNavbar('header-toggle', 'nav-bar', 'body-pd', 'header')
+                const linkColor = document.querySelectorAll('.nav_link')
+                function colorLink() {
+                    if (linkColor) {
+                        linkColor.forEach(l => l.classList.remove('active'))
+                        this.classList.add('active')
+                    }
                 }
-            }
-            linkColor.forEach(l => l.addEventListener('click', colorLink))
-            map = L.map('map').setView([44.4949, 11.3426], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            }).addTo(map);
-            getSensorData()
-            setInterval(()=>{
-                getSensorData(); // periodic update
-            }, 5000)
+                linkColor.forEach(l => l.addEventListener('click', colorLink))
+                map = L.map('map').setView([44.4949, 11.3426], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+                getSensorData()
+                setInterval(() => {
+                    getSensorData(); // periodic update
+                }, 5000)
 
 
-        });
+            });
 
-        function getSensorData(){
-            $.get("get-sensor-data", function (data) {
+            function getSensorData() {
+                $.get("get-sensor-data", function (data) {
                     markers = []
                     let ids = Object.keys(data)
-                    for(let i = 0; i < ids.length; i++){
+                    for (let i = 0; i < ids.length; i++) {
                         id = ids[i]
                         let lat = data[id].gps.lat
                         let lng = data[id].gps.lng
                         marker = L.marker([lat, lng])
-                        marker.on('click', (e)=>{
-                            swal.info()
-                            alert("Coords: " + e.latlng + "; ID: "+  id)
+                        marker.on('click', (e) => {
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Sensor ' + id,
+                                text: 'Coordinates: ' + e.latlng,
+                            })
+
                         })
                         marker.addTo(map)
                         markers.push(marker)
                     }
-            });
-        }
+                });
+            }
         </script>
 
     </body>
