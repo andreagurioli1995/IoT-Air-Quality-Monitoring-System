@@ -14,8 +14,10 @@
 
 #define DHTPIN 4 // Warning: data pin location can change during installation 
 #define SMOKE 34 // Warning: data pin location can change during installation
-#define LAT 44.597 // Warning: need to modify it in case of multisensor GPS simulation
-#define LNG 11.253 // Warning: need to modify it in case of multisensor GPS simulation
+// #define LAT 44.49758599214635 // Warning: need to modify it in case of multisensor GPS simulation
+// #define LNG 11.356412335933456 // Warning: need to modify it in case of multisensor GPS simulation
+#define LAT2 44.497037808961736 // Warning: need to modify it in case of multisensor GPS simulation
+#define LNG2 11.35638148420347 // Warning: need to modify it in case of multisensor GPS simulation
 #define INIT_MIN_GAS 4095 // initial setup for gas playground
 #define INIT_MAX_GAS 500 // initial setup for gas playground
 #define INIT_SAMPLE_FREQ 2500 // initial setup for sensors 
@@ -23,8 +25,8 @@
 #define INIT_RSS 0 // initial setup for WiFi analysis
 
 // ----------- Variables -----------
-const float lat = LAT; // latitude of the GPS location (no GPS sensor)
-const float lng = LNG; // longitude of the GPS location (no GPS sensor)
+const float lat = LAT2; // latitude of the GPS location (no GPS sensor) variation on LAT / LAT2
+const float lng = LNG2; // longitude of the GPS location (no GPS sensor) variation on LNG / LNG2
 const int capacity = JSON_OBJECT_SIZE(192); // capacity size 
 StaticJsonDocument<capacity> doc; // Json for data communication
 StaticJsonDocument<capacity> docp; // Json for the protocol switching
@@ -55,10 +57,10 @@ float temperature = 26.5;//temperature value for sensing phase
 float humidity = 56.3; // humidity value for sensing phase
 
 // ----------- WiFi Data -----------
- const char *ssid = "iPhone"; // Warning: enter your WiFi name
- const char *password = "19951995";  // Warning: enter WiFi password
-//const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
-//const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
+//const char *ssid = "iPhone"; // Warning: enter your WiFi name
+// const char *password = "19951995";  // Warning: enter WiFi password
+const char *ssid = "Vodafone-C01410160"; // Warning: enter your WiFi name
+const char *password = "PhzX3ZE9xGEy2H6L";  // Warning: enter WiFi password
 
 // ----------- Proxy Data -----------
 // check it on https://www.whatismyip.com/it/
@@ -417,6 +419,8 @@ void loop() {
   temperature = dht_sensor.readTemperature();  
   if(!testingPing&&prot_mode!='2'){
   // printing AQI
+  Serial.print("ID: ");
+  Serial.println(id);
   Serial.print("AQI:");
   Serial.println(AQI);
   Serial.print("Gas sensor: ");
