@@ -29,7 +29,7 @@ var alive; // alive timing
 
 // ------ Influx Data and Manager Setup ------
 const InfluxData = {
-  token: '9AdxVQDATLyxLPioNTeTLYpCqt2ksQ5TrSyTfIV0wGtU5El7v4Fz-lyzsTWUC56PlJUpllucqDg-hjlXuLMjYQ==',
+  token: 'XsaAgTTIvwmy0G9jrEMf2S2-hQfS2myED2PR_bEsZHoydrfol8qqE-Mnae63BxRDM8qsREHCGYrqsTz0zygdKQ==',
   host: 'localhost',
   org: 'iot-org',
   port: 8086,

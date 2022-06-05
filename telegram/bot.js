@@ -3,7 +3,7 @@ const { InfluxDB } = require('@influxdata/influxdb-client')
 const { Telegraf, Markup } = require('telegraf')
 
 const InfluxData = {
-    token : 'cg27XjSPiYE-Hccxv53O_WTXKWnuAi9II7eTxN5y9Ig4-vagqUJ23LQNtfIH45fC6tgDPo91f_X8MbRz_zZHSQ==',
+    token : 'XsaAgTTIvwmy0G9jrEMf2S2-hQfS2myED2PR_bEsZHoydrfol8qqE-Mnae63BxRDM8qsREHCGYrqsTz0zygdKQ==',
     host : 'localhost',
     org : 'iot-org',
     port : 8086,
