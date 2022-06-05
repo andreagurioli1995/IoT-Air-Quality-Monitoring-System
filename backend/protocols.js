@@ -24,6 +24,7 @@ const switchResponse = "sensor/1175/switch" // sender channel to swap protocols
 // ----- Session Sensors -----
 var sensors = {} // JSON with elements of the session (pushed to the dashboard)
 var requestCoAP = {} // id : requestID for CoAP request
+var validNode = {}
 var alive; // alive timing 
 
 // ------ Influx Data and Manager Setup ------
@@ -317,6 +318,27 @@ const testMQTT = (request, response) => {
 
 
 /**
+ * Register a new sensor in the proxy server 
+ * @param {*} request with the id of the sensor
+ * @param {*} response with the status of registration
+ */
+ const registerNode = (request, response) =>{
+  let id = request.body.id
+  pattern = /^\S*$/
+  let regexVerified = pattern.test(id)
+  console.log('Regex control: ' + regexVerified)
+  if(id != undefined && id != null && regexVerified){
+    if(validNode[id] == null || validNode[id] == undefined){
+      console.log('Registering id: ' + id)
+      validNode[id] = true
+      console.log(validNode)
+      response.json({result : true})
+    }
+    else response.json({result : false})
+  }
+}
+
+/**
  * updateSetup(request, response) to setup minGas, maxGas, sampleFrequency and protocol 
  * @param request gives the input data
  * @param response defines the response status
@@ -396,6 +418,14 @@ const getSensorData = (request, response) => {
 const processJSON = (data) => {
   let idJSON = data['id']
   if (idJSON != undefined && idJSON != null) {
+    console.log(validNode)
+    console.log(idJSON)
+    if(validNode[idJSON] == undefined && validNode[idJSON] != true){
+      console.log('----------------------------------')
+      console.log('Received message from unauthorized device: ' + idJSON)
+      console.log('----------------------------------')
+      return 0
+    }
     if (!checkId(idJSON)) {
       sensors[idJSON] = {
         id: idJSON, // internal key
@@ -502,8 +532,17 @@ const checkId = (id) => {
   return sensors[id] != null && sensors[id] != undefined
 }
 
+/**
+ * Getting the sensor list filtered on only registered nodes
+ * @returns registered nodes
+ */
 const getSensorsList = () => {
-  return sensors
+  let ids = Object.keys(validNode)
+  registered = {}
+  for(let i = 0; i < ids.length; i++){
+    registered[ids[i]] = sensors[ids[i]]
+  }
+  return registered
 }
 
 
@@ -560,6 +599,7 @@ module.exports = {
   forwardData,
   getSensorData,
   getSensorsList,
+  registerNode,
   switchMode,
   testMQTT,
   testCoAP,

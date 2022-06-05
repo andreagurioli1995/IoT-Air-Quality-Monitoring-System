@@ -230,7 +230,7 @@
                             <span class="nav_name">Dashboard</span> </a>
                         <a href="/map" class="nav_link active"> <i class='bx bx-map-pin nav_icon'></i> <span
                                 class="nav_name">Sensor Mapping</span> </a>
-                        <a href="/grafana" class="nav_link"> <i class='bx bx-bar-chart-alt-2 nav_icon'></i> <span
+                        <a href="http://localhost:3000/d/7E2WoCunk/grafana-dashboard?orgId=1&refresh=5s" class="nav_link"> <i class='bx bx-bar-chart-alt-2 nav_icon'></i> <span
                                 class="nav_name">Data Visualization</span> </a>
                     </div>
                 </div>
@@ -286,24 +286,16 @@
                 maxZoom: 19,
                 attribution: '© OpenStreetMap'
             }).addTo(map);
-
-            Swal.fire({
-                        title: 'Loading Sensors...',
-                        html: 'Waiting for <b></b> ms',
-                        timer: 5000,
-                        timerProgressBar: true,
-                        didOpen: () => {
-                            Swal.showLoading()
-                            const b = Swal.getHtmlContainer().querySelector('b')
-                            timerInterval = setInterval(() => {
-                                b.textContent = Swal.getTimerLeft()
-                            }, 100)
-                        },
-                        willClose: () => {
-                            clearInterval(timerInterval)
-                        }})
+            getSensorData()
             setInterval(()=>{
-                $.get("get-sensor-data", function (data) {
+                getSensorData(); // periodic update
+            }, 5000)
+
+
+        });
+
+        function getSensorData(){
+            $.get("get-sensor-data", function (data) {
                     markers = []
                     let ids = Object.keys(data)
                     for(let i = 0; i < ids.length; i++){
@@ -312,21 +304,14 @@
                         let lng = data[id].gps.lng
                         marker = L.marker([lat, lng])
                         marker.on('click', (e)=>{
+                            swal.info()
                             alert("Coords: " + e.latlng + "; ID: "+  id)
                         })
                         marker.addTo(map)
                         markers.push(marker)
                     }
             });
-            }, 5000)
-
-
-        });
-        
-
-
-            // var marker = L.marker([51.5, -0.09]).addTo(map);
-
+        }
         </script>
 
     </body>

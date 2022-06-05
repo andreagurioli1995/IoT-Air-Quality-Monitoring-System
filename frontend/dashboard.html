@@ -214,12 +214,14 @@
         <nav class="nav">
             <div> <a href="/" id="nav-logo" class="nav_logo"> <i class='bx bx-layer nav_logo-icon'></i> <span
                         class="nav_logo-name">Sensors Dashboard</span> </a>
-                <div class="nav_list"> <a href="/" id="nav-table" class="nav_link active"> <i class='bx bx-grid-alt nav_icon'></i>
+                <div class="nav_list"> <a href="/" id="nav-table" class="nav_link active"> <i
+                            class='bx bx-grid-alt nav_icon'></i>
                         <span class="nav_name">Dashboard</span> </a>
                     <a href="/map" id="map" class="nav_link"> <i class='bx bx-map-pin nav_icon'></i> <span
                             class="nav_name">Sensor Mapping</span> </a>
-                    <a href="/grafana" id="grafana" class="nav_link"> <i class='bx bx-bar-chart-alt-2 nav_icon'></i> <span
-                            class="nav_name">Data Visualization</span> </a>
+                    <a href="http://localhost:3000/d/7E2WoCunk/grafana-dashboard?orgId=1&refresh=5s" id="grafana"
+                        class="nav_link"> <i class='bx bx-bar-chart-alt-2 nav_icon'></i> <span class="nav_name">Data
+                            Visualization</span> </a>
                 </div>
             </div>
         </nav>
@@ -227,11 +229,12 @@
     <!--Container Main start-->
 
     <br>
-    <h4>Sensors Setup</h4>
+    <h2>Sensors Setup</h2>
     <br>
 
     <div class="container">
         <div class="row">
+            <h3>Metadata and Actions Settings</h3>
 
             <div class="col">
 
@@ -303,6 +306,21 @@
                     </table>
                     <!-- Update Sensor ids list -->
                     <button id="update-button" type="submit" class="btn btn-danger mb-2">Update Sensors Table</button>
+                </div>
+            </div> <!-- end col -->
+        </div> <!-- end row -->
+        <hr>
+        <div class="row">
+            <h3>Sensor Registration</h3>
+            <div class="col">
+                <div class="col">
+                    <input type="text" class="form-control" id="sensor-id-reg" name="registerSensor"
+                        placeholder="ID of Sensor to register">
+                </div>
+                <br>
+                <div class="col">
+                    <button type="submit" id="register-button" class="btn btn-danger mb-2">Go to Registration
+                        Form</button>
                 </div>
             </div> <!-- end col -->
         </div> <!-- end row -->
@@ -406,7 +424,7 @@
                     Swal.fire({
                         title: 'Operation in progress',
                         html: 'Waiting for <b></b> ms',
-                        timer: data[id]['sampleFrequency']*6,
+                        timer: data[id]['sampleFrequency'] * 6,
                         timerProgressBar: true,
                         didOpen: () => {
                             Swal.showLoading()
@@ -459,9 +477,9 @@
                 if (data[id]['protocol'] == 0) {
                     if (data[id]['mqtt'] == undefined || data[id]['mqtt'] == null || data[id]['mqtt'] == "") {
                         tdTest.innerHTML = " - "
-                    } else {                
+                    } else {
                         tdTest.innerHTML = data[id]['mqtt'] + " ms; " + data[id]['packageLossMQTT'] + "%"
-                        
+
                     }
                 } else {
                     if (data[id]['coap'] == undefined || data[id]['coap'] == null || data[id]['coap'] == "") {
@@ -502,7 +520,7 @@
                                 Swal.fire({
                                     title: 'Operation in progress',
                                     html: 'Waiting for <b></b> ms',
-                                    timer: data[id]['sampleFrequency']*6,
+                                    timer: data[id]['sampleFrequency'] * 6,
                                     timerProgressBar: true,
                                     didOpen: () => {
                                         Swal.showLoading()
@@ -678,7 +696,7 @@
                                             Swal.fire({
                                                 title: 'Operation in progress',
                                                 html: 'Waiting for <b></b> ms',
-                                                timer: data[id]['sampleFrequency']*6,
+                                                timer: data[id]['sampleFrequency'] * 6,
                                                 timerProgressBar: true,
                                                 didOpen: () => {
                                                     Swal.showLoading()
@@ -775,6 +793,13 @@
                 maxGas: _maxGas,
                 sampleFrequency: _sampleFrequency,
             }
+            
+            // Reset values
+            document.getElementById('sensor-id').value = ""
+            document.getElementById('min-gas').value = ""
+            document.getElementById('max-gas').value = ""
+            document.getElementById('sample-frequency').value = ""
+
             if ((!isNaN(_sampleFrequency) || _sampleFrequency == "") && (!isNaN(_minGas) || _minGas == "")
                 && (!isNaN(_maxGas) || _maxGas == "") && _id != "") {
                 $.ajax({
@@ -811,6 +836,46 @@
                 })
             }
         });
+
+
+        registerButton = document.getElementById('register-button')
+        registerButton.addEventListener('click', (e) => {
+            let idInput = document.getElementById('sensor-id-reg').value
+            document.getElementById('sensor-id-reg').value = ""
+            if(idInput == undefined || idInput == ""){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Something went wrong! Parameters missed!',
+                })
+            } else {
+
+                let dataJSON = {id : idInput}
+                $.ajax({
+                    type: 'POST',
+                    url: '/register',
+                    data: JSON.stringify(dataJSON),
+                    contentType: "application/json; charset=utf-8",
+                    traditional: true,
+                    success: function (data) {
+                        if (data.status == 400) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Oops...',
+                                text: 'Something went wrong! Parameters are not correct!',
+                            })
+                        } else {
+                            Swal.fire(
+                                'Sensor Registered!',
+                                'It can transmit data now!',
+                                'success'
+                            )
+                        }
+                    }
+                });
+
+            }
+        })
 
 
     </script>

@@ -70,12 +70,11 @@ app.get('/map', (request, response) =>{
   response.sendFile(path.join(__dirname, '../frontend/map.html'))
 })
 
-app.get('/grafana', (request, response) =>{
-  response.sendFile(path.join(__dirname, '../frontend/grafana.html'))
-})
-
 // Retrieve connected sensors ids
 app.get('/get-sensor-data', protocols.getSensorData)
+
+// register a new node as a device for the IoT network
+app.post('/register', protocols.registerNode)
 
 // update data for sensor via http protocol
 app.post('/update-setup', protocols.updateSetup)

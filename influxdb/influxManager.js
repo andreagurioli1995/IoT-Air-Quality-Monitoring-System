@@ -12,15 +12,15 @@ class InfluxManager {
 
     writeApi(clientId, gps, bucket, value) {
         const writeApi = this.client.getWriteApi(this.org, bucket)
-        writeApi.useDefaultTags({ host: clientId.toString(), lat : gps.lat.toString(), lng : gps.lng.toString()})
+        writeApi.useDefaultTags({host : clientId.toString(), lat : gps.lat.toString(), lng : gps.lng.toString()})
         var point = new Point('val')
         if(bucket == undefined || value == null){
             return false;
         }
         if (bucket == "aqi" ) {
-            point = point.intField('value', value)
+            point = point.intField(bucket, value)
         } else {
-            point = point.floatField('value', value)
+            point = point.floatField(bucket, value)
             // value = Math.round(value, 2)
         }
         writeApi.writePoint(point)
@@ -58,9 +58,7 @@ class InfluxManager {
         let query = `
         from(bucket: "${bucket}") 
         |> range(start: -10m)
-        |> filter(fn: (r) => r["_measurement"] == "val")
-        |> filter(fn: (r) => r["_field"] == "value")
-        |> filter(fn: (r) => r["host"] == "${host}")
+        |> filter(fn: (r) => r["_field"] == "${host}")
         |> filter(fn: (r)=> r["lat"] == "${gps.lat}")
         |> filter(fn: (r) => r["lng"] == "$${gps.lng}")
         |> movingAverage(n: 5)
