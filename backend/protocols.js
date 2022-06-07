@@ -3,6 +3,7 @@ const mqtt = require('mqtt')
 const influx = require('../influxdb/InfluxManager')
 const coap = require('coap')
 const request = require('request')
+const http = require('http')
 // Server session variables
 var idValues = []
 
@@ -482,10 +483,22 @@ const processJSON = (data) => {
   console.log(data)
   console.log('---------------------')
 
+
+
   // Write on InfluxDB
   const influxId = data['id']
   const gps = data['gps']
   for (const [key, value] of Object.entries(InfluxData.buckets)) {
+    console.log('Forecast: Sending request to: ' +  'http://localhost:5000/prediction/4/' + idJSON + "/" + value)
+    request.get(
+      'http://localhost:5000/prediction/4/' + idJSON + "/" + value,
+      { json: {} },
+      function (error, response, body) {
+          if (!error && response.statusCode == 200) {
+              console.log("InfluxDB: Wrote prediction for "  + value + " on host " + idJSON );
+          }
+      }
+  );
     switch (value) {
       case "temperature": influxManager.writeApi(influxId, gps, value, data['temp'])
         break;
