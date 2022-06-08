@@ -542,9 +542,8 @@ const processJSON = (data) => {
         { json: {} },
         function (error, response, body) {
           if (!error && response.statusCode == 200) {
-            console.log("InfluxDB: Wrote prediction for " + value + " on host " + idJSON);
-            console.log(body)
             // given data in the body, we want to add them in the next datetime according to the sensor sample frequency
+            influxManager.writeForecastApi(influxId, gps, body, value, sensors[idJSON]['sampleFrequency'])
           }
         }
       );
@@ -601,7 +600,7 @@ const checkId = (id) => {
  */
 const getSensorsList = () => {
   let ids = Object.keys(validNode)
-  registered = {}
+  let registered = {}
   for (let i = 0; i < ids.length; i++) {
     registered[ids[i]] = sensors[ids[i]]
   }
@@ -654,10 +653,10 @@ const stopAlive = () => {
 // Caller for the alive function
 initAlive()
 
-
 // module export 
 module.exports = {
   updateSetup,
+  updatePredLen,
   processJSON,
   forwardData,
   getSensorData,

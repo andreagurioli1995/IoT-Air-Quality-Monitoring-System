@@ -1,5 +1,6 @@
 const { InfluxDB } = require('@influxdata/influxdb-client')
 const { Point } = require('@influxdata/influxdb-client')
+const { QueryAPI } = require('@influxdata/influxdb-client-apis')
 
 class InfluxManager {
     constructor(host, port, token, org) {
@@ -12,12 +13,12 @@ class InfluxManager {
 
     writeApi(clientId, gps, bucket, value) {
         const writeApi = this.client.getWriteApi(this.org, bucket)
-        writeApi.useDefaultTags({host : clientId.toString(), lat : gps.lat.toString(), lng : gps.lng.toString()})
+        writeApi.useDefaultTags({prediction: false, host: clientId.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
         var point = new Point('val')
-        if(bucket == undefined || value == null){
+        if (bucket == undefined || value == null) {
             return false;
         }
-        if (bucket == "aqi" ) {
+        if (bucket == "aqi") {
             point = point.intField(bucket, value)
         } else {
             point = point.floatField(bucket, value)
@@ -77,7 +78,7 @@ class InfluxManager {
                 rowResult = -1
             },
             complete() {
-                if(rowResult == undefined || rowResult == null){
+                if (rowResult == undefined || rowResult == null) {
                     rowResult = -1
                 } else {
                     console.log("Bucket: " + bucket + " :-> " + rowResult)
@@ -87,14 +88,76 @@ class InfluxManager {
         })
     }
 
+    writeForecastApi(host, gps, collection, bucket, frequency) {
+        // getting the first timestamp
+        const writeApi = this.client.getWriteApi(this.org, bucket)
+        const queryApi = this.client.getQueryApi(this.org)
+        let query = `
+        from(bucket: "${bucket}")
+            |> range(start: -1d)
+            |> filter(fn: (r) => r["_measurement"] == "val")
+            |> filter(fn: (r) => r["host"] == "${host}")
+            |> filter(fn: (r) => r["lat"] == "${gps.lat}")
+            |> filter(fn: (r) => r["lng"] == "${gps.lng}")
+            |> keep(columns: ["_time"])
+            |> sort(columns: ["_time"], desc: false)
+            |> last(column: "_time")
+        `
+        let timestamp;
+        var rowResult;
+
+        queryApi.queryRows(query, {
+            next(row, tableMeta) {
+                rowResult = tableMeta.toObject(row)._time
+                timestamp = rowResult // JIT on the first and unique row
+            },
+            error(e) {
+                console.log('InfluxDB Read Error: ' + e)
+                rowResult = -1
+            },
+            complete() {
+                // we have the timestamp and the frequency, the idea is to adapt the
+                // timestamps of the next n predictions to focus the same interval of 
+                // the sensor.
+                let numSamples = collection.length
+                for (let i = 0; i < numSamples; i++) {
+                    let time = new Date(timestamp)
+                    let value = collection[i]
+                    time.setMilliseconds(time.getMilliseconds() + frequency * (i + 1))
+                    writeApi.useDefaultTags({prediction: true, host: host.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
+                    var point = new Point('val').timestamp(time)
+                    if (bucket == undefined || value == null) {
+                        return false;
+                    }
+                    if (bucket == "aqi") {
+                        point = point.intField(bucket, value)
+                    } else {
+                        point = point.floatField(bucket, value)
+                        // value = Math.round(value, 2)
+                    }
+                    writeApi.writePoint(point)
+
+                    writeApi.close()
+                        .then(() => {
+                            console.log('InfluxDB: Wrote prediction value: ' + value + " on bucket: " + bucket + " with host: " + host + "; lat: " + gps.lat + "; lng: " + gps.lng + ", and timestamp: " + timestamp)
+                        })
+                        .catch(e => {
+                            console.log('InfluxDB Write Error: ' + e)
+                        })
+                }
+            },
+        })
+    }
+
+
 }
 
 const InfluxData = {
-    token : 'XsaAgTTIvwmy0G9jrEMf2S2-hQfS2myED2PR_bEsZHoydrfol8qqE-Mnae63BxRDM8qsREHCGYrqsTz0zygdKQ==',
-    host : 'localhost',
-    org : 'iot-org',
-    port : 8086,
-    buckets : {
+    token: 'XsaAgTTIvwmy0G9jrEMf2S2-hQfS2myED2PR_bEsZHoydrfol8qqE-Mnae63BxRDM8qsREHCGYrqsTz0zygdKQ==',
+    host: 'localhost',
+    org: 'iot-org',
+    port: 8086,
+    buckets: {
         temp: 'temperature',
         aqi: 'aqi',
         hum: 'humidity',
