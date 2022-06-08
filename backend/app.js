@@ -74,7 +74,10 @@ app.get('/map', (request, response) =>{
 app.get('/get-sensor-data', protocols.getSensorData)
 
 // register a new node as a device for the IoT network
-app.post('/register', protocols.registerNode)
+app.post('/registerModel', protocols.registerModel)
+
+// register a new node as a device for the IoT network
+app.post('/registerNode', protocols.registerNode)
 
 // update data for sensor via http protocol
 app.post('/update-setup', protocols.updateSetup)

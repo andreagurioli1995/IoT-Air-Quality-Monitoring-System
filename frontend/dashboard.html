@@ -793,7 +793,7 @@
                 maxGas: _maxGas,
                 sampleFrequency: _sampleFrequency,
             }
-            
+
             // Reset values
             document.getElementById('sensor-id').value = ""
             document.getElementById('min-gas').value = ""
@@ -842,7 +842,7 @@
         registerButton.addEventListener('click', (e) => {
             let idInput = document.getElementById('sensor-id-reg').value
             document.getElementById('sensor-id-reg').value = ""
-            if(idInput == undefined || idInput == ""){
+            if (idInput == undefined || idInput == "") {
                 Swal.fire({
                     icon: 'error',
                     title: 'Oops...',
@@ -850,10 +850,10 @@
                 })
             } else {
 
-                let dataJSON = {id : idInput}
+                let dataJSON = { id: idInput }
                 $.ajax({
                     type: 'POST',
-                    url: '/register',
+                    url: '/registerModel',
                     data: JSON.stringify(dataJSON),
                     contentType: "application/json; charset=utf-8",
                     traditional: true,
@@ -865,14 +865,32 @@
                                 text: 'Something went wrong! Parameters are not correct!',
                             })
                         } else {
-                            Swal.fire(
-                                'Sensor Registered!',
-                                'It can transmit data now!',
-                                'success'
-                            )
+                            $.ajax({
+                                type: 'POST',
+                                url: '/registerNode',
+                                data: JSON.stringify(dataJSON),
+                                contentType: "application/json; charset=utf-8",
+                                traditional: true,
+                                success: function (data) {
+                                    if (data.status == 400) {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Oops...',
+                                            text: 'Something went wrong! Parameters are not correct!',
+                                        })
+                                    } else {
+                                        Swal.fire(
+                                            'Sensor Registered!',
+                                            'It can transmit data now!',
+                                            'success'
+                                        )
+                                    }
+                                }
+                            });
                         }
                     }
                 });
+
 
             }
         })

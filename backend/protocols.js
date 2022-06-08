@@ -26,7 +26,9 @@ const switchResponse = "sensor/1175/switch" // sender channel to swap protocols
 var sensors = {} // JSON with elements of the session (pushed to the dashboard)
 var requestCoAP = {} // id : requestID for CoAP request
 var validNode = {}
+var validModel = {}
 var alive; // alive timing 
+var predLen = 4;
 
 // ------ Influx Data and Manager Setup ------
 const InfluxData = {
@@ -47,7 +49,7 @@ const InfluxData = {
 const influxManager = new influx.InfluxManager(InfluxData.host, InfluxData.port, InfluxData.token, InfluxData.org)
 
 // ----- OpenWeatherAPI metadata -----
-const API_WEATHER_KEY = 'dbd3b02d8958d62185d02e944cd5f522'; 
+const API_WEATHER_KEY = 'dbd3b02d8958d62185d02e944cd5f522';
 
 // ---------- Functions for MQTT -----------
 init = () => {
@@ -319,26 +321,70 @@ const testMQTT = (request, response) => {
 
 
 /**
- * Register a new sensor in the proxy server 
+ * Register a new model on the flask app
  * @param {*} request with the id of the sensor
  * @param {*} response with the status of registration
  */
- const registerNode = (request, response) =>{
+const registerModel = (request, response) => {
   let id = request.body.id
   pattern = /^\S*$/
   let regexVerified = pattern.test(id)
   console.log('Regex control: ' + regexVerified)
-  if(id != undefined && id != null && regexVerified){
-    if(validNode[id] == null || validNode[id] == undefined){
-      console.log('Registering id: ' + id)
+  if (id != undefined && id != null && regexVerified) {
+    console.log('FLASK: Request on ' + 'http://127.0.0.1:5000/updateSensors/' + id)
+    request.get(
+      'http://127.0.0.1:5000/updateSensors/' + id,
+      { json: {} },
+      function (error, response, body) {
+        if (!error) {
+          console.log('FLASK: Registration successfully')
+        } else {
+          console.log('FLASK: error during the update, error: ' + error)
+        }
+      }
+    );
+    response.json({ result: true })
+  }
+  else response.json({ result: false })
+}
+
+
+/**
+ * Register a new sensor in the proxy server 
+ * @param {*} request with the id of the sensor
+ * @param {*} response with the status of registration
+ */
+const registerNode = (request, response) => {
+  let id = request.body.id
+  pattern = /^\S*$/
+  let regexVerified = pattern.test(id)
+  console.log('Regex control: ' + regexVerified)
+  if (id != undefined && id != null && regexVerified) {
+    if (validNode[id] == null || validNode[id] == undefined) {
+      console.log('Proxy: Registering id: ' + id)
       validNode[id] = true
       console.log(validNode)
-      response.json({result : true})
+      response.json({ result: true })
     }
-    else response.json({result : false})
+    else response.json({ result: false })
   }
 }
 
+/**
+ * Setup of prediction length via dashboard API call
+ * @param {*} request with the future prediction length over thread interval in the Flask app
+ * @param {*} response with the current status in JSON format
+ * @return response with the current status
+ */
+const updatePredLen = (request, response) => {
+  predictionLength = request.body.pred
+  if (predictionLength != undefined) {
+    predLen = request.body.pred
+    return response.status(200).json()
+  } else {
+    return response.status(401).json()
+  }
+}
 /**
  * updateSetup(request, response) to setup minGas, maxGas, sampleFrequency and protocol 
  * @param request gives the input data
@@ -421,7 +467,7 @@ const processJSON = (data) => {
   if (idJSON != undefined && idJSON != null) {
     console.log(validNode)
     console.log(idJSON)
-    if(validNode[idJSON] == undefined && validNode[idJSON] != true){
+    if (validNode[idJSON] == undefined && validNode[idJSON] != true) {
       console.log('----------------------------------')
       console.log('Received message from unauthorized device: ' + idJSON)
       console.log('----------------------------------')
@@ -489,16 +535,20 @@ const processJSON = (data) => {
   const influxId = data['id']
   const gps = data['gps']
   for (const [key, value] of Object.entries(InfluxData.buckets)) {
-    console.log('Forecast: Sending request to: ' +  'http://localhost:5000/prediction/4/' + idJSON + "/" + value)
-    request.get(
-      'http://localhost:5000/prediction/4/' + idJSON + "/" + value,
-      { json: {} },
-      function (error, response, body) {
+    if (key == "temp" || key == "gas" || key == "hum") {
+      console.log('Forecast: Sending request to: ' + 'http://localhost:5000/forecast/' + predLen + '/' + idJSON + "/" + key)
+      request.get(
+        'http://localhost:5000/forecast/' + predLen + '/' + idJSON + "/" + key,
+        { json: {} },
+        function (error, response, body) {
           if (!error && response.statusCode == 200) {
-              console.log("InfluxDB: Wrote prediction for "  + value + " on host " + idJSON );
+            console.log("InfluxDB: Wrote prediction for " + value + " on host " + idJSON);
+            console.log(body)
+            // given data in the body, we want to add them in the next datetime according to the sensor sample frequency
           }
-      }
-  );
+        }
+      );
+    }
     switch (value) {
       case "temperature": influxManager.writeApi(influxId, gps, value, data['temp'])
         break;
@@ -519,17 +569,17 @@ const processJSON = (data) => {
   let latitude = data.gps.lat
   let longitude = data.gps.lng
   var url = `http://api.openweathermap.org/data/2.5/weather?`
-  +`lat=${latitude}&lon=${longitude}&appid=${API_WEATHER_KEY}`
-  request({ url: url, json: true }, function (error, response) { 
-    if (error) { 
-        console.log('METEO-STAT: Unable to connect to Forecast API'); 
-    } 
-      else { 
-        let temp = Math.round(response.body.main.temp - 273.15,2) // convert in celsius
-        let bucket = InfluxData.buckets.tempout
-        influxManager.writeApi(influxId, gps, bucket, temp)
-    } 
-}) 
+    + `lat=${latitude}&lon=${longitude}&appid=${API_WEATHER_KEY}`
+  request({ url: url, json: true }, function (error, response) {
+    if (error) {
+      console.log('METEO-STAT: Unable to connect to Forecast API');
+    }
+    else {
+      let temp = Math.round(response.body.main.temp - 273.15, 2) // convert in celsius
+      let bucket = InfluxData.buckets.tempout
+      influxManager.writeApi(influxId, gps, bucket, temp)
+    }
+  })
 
   console.log('---------------------')
 
@@ -552,7 +602,7 @@ const checkId = (id) => {
 const getSensorsList = () => {
   let ids = Object.keys(validNode)
   registered = {}
-  for(let i = 0; i < ids.length; i++){
+  for (let i = 0; i < ids.length; i++) {
     registered[ids[i]] = sensors[ids[i]]
   }
   return registered
@@ -613,6 +663,7 @@ module.exports = {
   getSensorData,
   getSensorsList,
   registerNode,
+  registerModel,
   switchMode,
   testMQTT,
   testCoAP,
