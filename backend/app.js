@@ -73,6 +73,9 @@ app.get('/map', (request, response) =>{
 // Retrieve connected sensors ids
 app.get('/get-sensor-data', protocols.getSensorData)
 
+// updating prediction length for forecasting 
+app.post('/updatePredLen', protocols.updatePredLen)
+
 // register a new node as a device for the IoT network
 app.post('/registerModel', protocols.registerModel)
 

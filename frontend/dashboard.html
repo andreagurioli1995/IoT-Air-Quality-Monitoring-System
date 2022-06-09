@@ -311,8 +311,8 @@
         </div> <!-- end row -->
         <hr>
         <div class="row">
-            <h3>Sensor Registration</h3>
             <div class="col">
+                <h3>Sensor Registration</h3>
                 <div class="col">
                     <input type="text" class="form-control" id="sensor-id-reg" name="registerSensor"
                         placeholder="ID of Sensor to register">
@@ -321,6 +321,17 @@
                 <div class="col">
                     <button type="submit" id="register-button" class="btn btn-danger mb-2">Go to Registration
                         Form</button>
+                </div>
+            </div> <!-- end col -->
+            <div class="col">
+                <h3>Forecasting Prediction Length</h3>
+                <div class="col">
+                    <input type="number" class="form-control" id="prediction-length" name="prediction-length"
+                        placeholder="Prediction Length">
+                </div>
+                <br>
+                <div class="col">
+                    <button type="submit" id="pred-button" class="btn btn-danger mb-2">Setup Prediction Length</button>
                 </div>
             </div> <!-- end col -->
         </div> <!-- end row -->
@@ -372,8 +383,6 @@
                 contentType: "application/json; charset=utf-8",
                 traditional: true,
                 success: function (data) {
-                    // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
-                    // after that get the content and updates rows of the table
                     let timerInterval
                     Swal.fire({
                         title: 'Operation in progress',
@@ -417,8 +426,6 @@
                 contentType: "application/json; charset=utf-8",
                 traditional: true,
                 success: function (data) {
-                    // To-Do: Display message, waiting sample_frequency times and autoremove the alert message
-                    // after that get the content and updates rows of the table
                     console.log('Request to test-mqtt response: OK')
                     let timerInterval
                     Swal.fire({
@@ -786,7 +793,14 @@
             _minGas = document.getElementById('min-gas').value
             _maxGas = document.getElementById('max-gas').value
             _sampleFrequency = document.getElementById('sample-frequency').value
-
+            if(_sampleFrequency < 5000){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'You must insert a sample frequency greater than 5000',
+                })
+                _sampleFrequency = 5000
+            }
             jsonData = {
                 id: _id,
                 minGas: _minGas,
@@ -837,7 +851,47 @@
             }
         });
 
+        // prediction service
+        predButton = document.getElementById('pred-button')
+        predButton.addEventListener('click', (e) => {
+            let pred = document.getElementById('prediction-length').value
+            document.getElementById('prediction-length').value = ""
+            if (pred == undefined || pred == "") {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Something went wrong! Parameters missed!',
+                })
+            } else {
+                Swal.fire(
+                    'Prediction length updated to ' + pred,
+                    'Forecasting predicts ' + pred + ' measurements ahead!',
+                    'success'
+                )
+                let dataJSON = { length: pred }
+                $.ajax({
+                    type: 'POST',
+                    url: '/updatePredLen',
+                    data: JSON.stringify(dataJSON),
+                    contentType: "application/json; charset=utf-8",
+                    success: function (data) {
+                        console.log(data)
+                        if (data.status == 200) {
+                            // 
+                        } else {
+                            Swal.fire(
+                                'Error ' + data.status + ': Value outrange or missed',
+                                'You must insert a value between 1 to 5',
+                                'error'
+                            )
+                        }
+                    }
+                })
+            }
+        })
 
+
+        // register service
         registerButton = document.getElementById('register-button')
         registerButton.addEventListener('click', (e) => {
             let idInput = document.getElementById('sensor-id-reg').value

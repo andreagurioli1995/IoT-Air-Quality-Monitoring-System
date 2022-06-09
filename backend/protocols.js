@@ -377,12 +377,13 @@ const registerNode = (request, response) => {
  * @return response with the current status
  */
 const updatePredLen = (request, response) => {
-  predictionLength = request.body.pred
+  let predictionLength = request.body.length
   if (predictionLength != undefined) {
-    predLen = request.body.pred
-    return response.status(200).json()
+    predLen = predictionLength
+    console.log('HTTP: Prediction length changed to: ' + predictionLength)
+    return response.status(200)
   } else {
-    return response.status(401).json()
+    return response.status(401)
   }
 }
 /**
@@ -401,11 +402,17 @@ const updateSetup = (request, response) => {
       maxGas: request.body.maxGas,
       sampleFrequency: request.body.sampleFrequency,
     }
-    sensors[id]['sampleFrequency'] = request.body.sampleFrequency
+
+
+    if(request.body.sampleFrequency < 5000){
+      sensors[id]['sampleFrequency'] = 5000
+    } else {
+      sensors[id]['sampleFrequency'] = request.body.sampleFrequency
+    }
 
     // check data
 
-    if (data.id == undefined || data.id == null || data.minGas > data.maxGas || data.sampleFrequency < 0) {
+    if (data.id == undefined || data.id == null || data.minGas > data.maxGas || data.sampleFrequency < 5000) {
       console.log('HTTP Error: Invalid values received.')
       response.json({ status: 400 })
       console.log('-----------------------------')
