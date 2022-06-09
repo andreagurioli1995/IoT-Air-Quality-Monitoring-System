@@ -13,7 +13,7 @@ class InfluxManager {
 
     writeApi(clientId, gps, bucket, value) {
         const writeApi = this.client.getWriteApi(this.org, bucket)
-        writeApi.useDefaultTags({prediction: "no", host: clientId.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
+        writeApi.useDefaultTags({ prediction: "no", host: clientId.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
         var point = new Point('val')
         if (bucket == undefined || value == null) {
             return false;
@@ -126,7 +126,7 @@ class InfluxManager {
                     let time = new Date(timestamp)
                     let value = collection[i]
                     time.setMilliseconds(time.getMilliseconds() + frequency * (i + 1))
-                    writeApi.useDefaultTags({prediction: "yes", host: host.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
+                    writeApi.useDefaultTags({ prediction: "yes", host: host.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
                     var point = new Point('val').timestamp(time)
                     if (bucket == undefined || value == null) {
                         return false;
@@ -138,15 +138,16 @@ class InfluxManager {
                         // value = Math.round(value, 2)
                     }
                     writeApi.writePoint(point)
+                    console.log('InfluxDB: Wrote prediction value: ' + value + " on bucket: " + bucket + " with host: " + host + "; lat: " + gps.lat + "; lng: " + gps.lng + ", and timestamp: " + time)
 
-                    writeApi.close()
-                        .then(() => {
-                            console.log('InfluxDB: Wrote prediction value: ' + value + " on bucket: " + bucket + " with host: " + host + "; lat: " + gps.lat + "; lng: " + gps.lng + ", and timestamp: " + timestamp)
-                        })
-                        .catch(e => {
-                            console.log('InfluxDB Write Error: ' + e)
-                        })
                 }
+                writeApi.close()
+                    .then(() => {
+                        //
+                    })
+                    .catch(e => {
+                        console.log('InfluxDB Write Error: ' + e)
+                    })
             },
         })
     }
