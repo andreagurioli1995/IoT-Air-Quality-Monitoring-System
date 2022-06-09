@@ -1,4 +1,3 @@
-from pyexpat import model
 from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client import InfluxDBClient, Point, WriteOptions
 from flask import Flask, jsonify
@@ -7,9 +6,7 @@ import numpy as np
 from statsmodels.tsa.arima.model import ARIMA
 import pickle
 import pandas as pd
-import threading, time
 from RepeatedTimer import RepeatedTimer
-import json 
 from os import path
 
 #creating flask instance
@@ -24,6 +21,7 @@ temp_models = {} # host : temp model
 hum_models = {} # host : humidity model
 gas_models = {} # host: gas model
 counters_host = {} # host : counter
+
 
 # setting up variables for influx query
 token = 'XsaAgTTIvwmy0G9jrEMf2S2-hQfS2myED2PR_bEsZHoydrfol8qqE-Mnae63BxRDM8qsREHCGYrqsTz0zygdKQ=='
@@ -77,7 +75,7 @@ def forecastModel(pred, host, bucket, freq):
     try:
         handler = open('../models/{}/{}'.format(bucket, host), "rb")
         model = pickle.load(handler)
-    except FileNotFoundError:
+    except FileNotFoundError or pickle.UnpicklingError:
         print('Except called: Old model load...')
         print("--------------------------------------------------")
         if bucket == "gas":
