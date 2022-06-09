@@ -492,6 +492,18 @@ const processJSON = (data) => {
       // update values
       sensors[idJSON]['protocol'] = data['protocol']
       sensors[idJSON]['ip'] = data['ip']
+      if(sensors[idJSON]['sampleFrequency'] != data['samF']){
+        request.get(
+          'http://localhost:5000/changeFreq/' + idJSON + "/" + data['samF'],
+          { json: {} },
+          function (error, response, body) {
+            if (!error && response.statusCode == 200) {
+              // given data in the body, we want to add them in the next datetime according to the sensor sample frequency
+              console.log('FLASK: Changed sample frequency on sensor: ' + idJSON + " with frequency at " + data['samF'])
+            }
+          }
+        );
+      }
       sensors[idJSON]['sampleFrequency'] = data['samF']
       sensors[idJSON]['gps'] = data['gps']
       sensors[idJSON]['timestamp'] = Date.now()
@@ -536,9 +548,9 @@ const processJSON = (data) => {
   const gps = data['gps']
   for (const [key, value] of Object.entries(InfluxData.buckets)) {
     if (key == "temp" || key == "gas" || key == "hum") {
-      console.log('Forecast: Sending request to: ' + 'http://localhost:5000/forecast/' + predLen + '/' + idJSON + "/" + key)
+      console.log('Forecast: Sending request to: ' + 'http://localhost:5000/forecast/' + predLen + '/' + idJSON + "/" + key + "/" +  sensors[idJSON]['sampleFrequency'])
       request.get(
-        'http://localhost:5000/forecast/' + predLen + '/' + idJSON + "/" + key,
+        'http://localhost:5000/forecast/' + predLen + '/' + idJSON + "/" + key + "/" + sensors[idJSON]['sampleFrequency'],
         { json: {} },
         function (error, response, body) {
           if (!error && response.statusCode == 200) {

@@ -40,11 +40,19 @@ model_temp = pickle.load(open('../models/temp-base', 'rb'))
 model_hum = pickle.load(open('../models/hum-base', 'rb'))
 model_gas = pickle.load(open('../models/gas-base', 'rb'))
 
+
+freqs = {}
 # threads and models in continous updating 
 timer = {
-    "temp" : {},
-    "hum" : {},
-    "gas" : {},
+    "temp" : {
+        # host : thread
+    },
+    "hum" : {
+        # host : thread
+    },
+    "gas" : {
+        # host : thread
+    },
 }
 
 # main root (used only to check )
@@ -52,12 +60,19 @@ timer = {
 def serverAlive():
     return f"<p>The server is working on {org}</p>"
 
+@app.route("/changeFreq/<host>/<freq>")
+def changeFreq(host, freq):
+    if(freqs[host] != None):
+        freqs[host] = freq
+    return jsonify("")
+
 # forecasting recall
-@app.route("/forecast/<pred>/<host>/<bucket>")
-def forecastModel(pred, host, bucket):
+@app.route("/forecast/<pred>/<host>/<bucket>/<freq>")
+def forecastModel(pred, host, bucket, freq):
     # pick the model if already exists
+    freqs[host] = float(freq)
     model = None
-    print('Invoke forecast for {} on {} with lang {}'.format(host, bucket, pred))
+    print('Invoke forecast for {} on {} with lang {} and {}'.format(host, bucket, pred, freq))
     print("--------------------------------------------------")
     try:
         handler = open('../models/{}/{}'.format(bucket, host), "rb")
@@ -73,16 +88,24 @@ def forecastModel(pred, host, bucket):
             model = model_hum
         
         update(host, bucket)
-        if(timer[bucket] != {} and timer[bucket][host] != None):
+
+        if(timer[bucket] != {} and  host in timer[bucket] and timer[bucket][host] != None):
             try:
-                timer.bucket.host.stop()
+                timer[bucket][host].stop()
             except:
                 print('Error during closing thread')
+
+
         print("--------------------------------------------------")
         print('Saving thread on {} for {}'.format(bucket, host))
         print("--------------------------------------------------")
-        timer[bucket][host] = RepeatedTimer(60, update, host, bucket)        
-
+    if(timer[bucket] != {} and host in timer[bucket] and timer[bucket][host] != None):
+        update(host, bucket)
+        timer[bucket][host].stop()
+        timer[bucket][host] = RepeatedTimer(freqs[host], update, host, bucket)        
+    else:
+        update(host, bucket)
+        timer[bucket][host] = RepeatedTimer(freqs[host], update, host, bucket)        
     # model is available for forecasting 
     if int(pred) > 1:
         output = []
@@ -102,21 +125,24 @@ def update(host, bucket):
         query = 'from(bucket: "temperature")'\
         '|> range(start: -1d)'\
         '|> filter(fn: (r) => r["_field"] == "temperature")'\
-        '|> filter(fn: (r) => r["host"] == "{}")'.format(host)
+        '|> filter(fn: (r) => r["host"] == "{}")'\
+        '|> filter(fn: (r) => r["prediction"] == "no")'.format(host)
     elif bucket == "hum":
         query = 'from(bucket: "humidity")'\
         '|> range(start: -1d)'\
         '|> filter(fn: (r) => r["_field"] == "humidity")'\
-        '|> filter(fn: (r) => r["host"] == "{}")'.format(host)
+        '|> filter(fn: (r) => r["host"] == "{}")'\
+        '|> filter(fn: (r) => r["prediction"] == "no")'.format(host)
     elif bucket == "gas":
         query = 'from(bucket: "gas")'\
         '|> range(start: -1d)'\
         '|> filter(fn: (r) => r["_field"] == "gas")'\
-        '|> filter(fn: (r) => r["host"] == "{}")'.format(host)
+        '|> filter(fn: (r) => r["host"] == "{}")'\
+        '|> filter(fn: (r) => r["prediction"] == "no")'.format(host)
     else:
         print('Error, bucket not supported')
 
-
+    print(query)
     # retrieves data from InfluxDB 
     result = client.query_api().query(org=org, query=query)
     #setting the raw results on a pandas dataframe
@@ -143,9 +169,14 @@ def update(host, bucket):
             # history defining
             history = np.asarray(df['y']).astype(float)
             if bucket == "gas":
-                model = ARIMA(history, order=(1,1,2)) # the best order was been chosen in the notebook
+                # gas
+                model = ARIMA(history, order=(1,2,0)) # the best order was been chosen in the notebook
+            elif bucket == "temp":
+                # temp
+                model = ARIMA(history, order=(1,2,2)) # the best order was been chosen in the notebook
             else:
-                model = ARIMA(history, order=(1,1,1)) # the best order was been chosen in the notebook
+                # hum
+                model = ARIMA(history, order=(2,1,1)) # the best order was been chosen in the notebook
             model = model.fit()
             fh = open("../models/{}/{}".format(bucket, host), "wb")
             pickle.dump(model, fh)

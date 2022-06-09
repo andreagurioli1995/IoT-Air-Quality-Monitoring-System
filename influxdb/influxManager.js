@@ -13,7 +13,7 @@ class InfluxManager {
 
     writeApi(clientId, gps, bucket, value) {
         const writeApi = this.client.getWriteApi(this.org, bucket)
-        writeApi.useDefaultTags({prediction: false, host: clientId.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
+        writeApi.useDefaultTags({prediction: "no", host: clientId.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
         var point = new Point('val')
         if (bucket == undefined || value == null) {
             return false;
@@ -62,6 +62,7 @@ class InfluxManager {
         |> filter(fn: (r) => r["_field"] == "${host}")
         |> filter(fn: (r)=> r["lat"] == "${gps.lat}")
         |> filter(fn: (r) => r["lng"] == "$${gps.lng}")
+        |> filter(fn: (r) => r["prediction"] == "no") 
         |> movingAverage(n: 5)
         |> yield(name: "mean")
         `
@@ -99,6 +100,7 @@ class InfluxManager {
             |> filter(fn: (r) => r["host"] == "${host}")
             |> filter(fn: (r) => r["lat"] == "${gps.lat}")
             |> filter(fn: (r) => r["lng"] == "${gps.lng}")
+            |> filter(fn: (r) => r["prediction"] == "no")
             |> keep(columns: ["_time"])
             |> sort(columns: ["_time"], desc: false)
             |> last(column: "_time")
@@ -124,7 +126,7 @@ class InfluxManager {
                     let time = new Date(timestamp)
                     let value = collection[i]
                     time.setMilliseconds(time.getMilliseconds() + frequency * (i + 1))
-                    writeApi.useDefaultTags({prediction: true, host: host.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
+                    writeApi.useDefaultTags({prediction: "yes", host: host.toString(), lat: gps.lat.toString(), lng: gps.lng.toString() })
                     var point = new Point('val').timestamp(time)
                     if (bucket == undefined || value == null) {
                         return false;
