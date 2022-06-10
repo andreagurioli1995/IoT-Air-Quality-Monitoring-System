@@ -171,10 +171,10 @@ def update(host, bucket):
                 model = ARIMA(history, order=(1,2,0)) # the best order was been chosen in the notebook
             elif bucket == "temp":
                 # temp
-                model = ARIMA(history, order=(1,2,2)) # the best order was been chosen in the notebook
+                model = ARIMA(history, order=(1,1,1)) # the best order was been chosen in the notebook
             else:
                 # hum
-                model = ARIMA(history, order=(2,1,1)) # the best order was been chosen in the notebook
+                model = ARIMA(history, order=(1,1,1)) # the best order was been chosen in the notebook
             model = model.fit()
             fh = open("../models/{}/{}".format(bucket, host), "wb")
             pickle.dump(model, fh)
