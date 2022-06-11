@@ -57,6 +57,7 @@ bot.command('buckets', (ctx)=>{
     "aqi - it is the mean AQI on the past 5 iteration\n " +
     "\n\nIf you want to invoke them, you must put a back slash before and specify the id of the host")
 })
+
 for (const [key, value] of Object.entries(InfluxData.buckets)) {
     console.log('Creation of command /'+ key + ' to query on bucket ' + value)
     bot.command(key, context=>{
@@ -70,11 +71,13 @@ for (const [key, value] of Object.entries(InfluxData.buckets)) {
             from(bucket: "${bucket}") 
             |> range(start: -10m)
             |> filter(fn: (r) => r["_measurement"] == "val")
-            |> filter(fn: (r) => r["_field"] == "value")
+            |> filter(fn: (r) => r["_field"] == "${bucket}")
             |> filter(fn: (r) => r["host"] == "${host}")
+            |> filter(fn : (r) => r["prediction"] == "no")
             |> movingAverage(n: 5)
             |> yield(name: "mean")
             `
+            console.log(query)
             const queryApi = client.getQueryApi(InfluxData.org)
             var rowResult;
             queryApi.queryRows(query, {

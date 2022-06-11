@@ -398,8 +398,8 @@ const updateSetup = (request, response) => {
   if (checkId(id)) {
     const data = {
       id: request.body.id,
-      minGas: request.body.minGas,
-      maxGas: request.body.maxGas,
+      minGas: request.body.maxGas, // inverted related to data domain
+      maxGas: request.body.minGas, // inverted related to data domain
       sampleFrequency: request.body.sampleFrequency,
     }
 
@@ -412,7 +412,8 @@ const updateSetup = (request, response) => {
 
     // check data
 
-    if (data.id == undefined || data.id == null || data.minGas > data.maxGas || data.sampleFrequency < 5000) {
+    if (data.id == undefined || data.id == null || data.minGas > data.maxGas || 
+      (data.sampleFrequency == undefined || data.sampleFrequency == null || data.sampleFrequency < 5000)) {
       console.log('HTTP Error: Invalid values received.')
       response.json({ status: 400 })
       console.log('-----------------------------')
@@ -639,7 +640,7 @@ const initAlive = () => {
       let now = Date.now()
       let diff = now - lastTime
       let freq = sensors[id]['sampleFrequency']
-      if (diff > (freq * 10)) {
+      if (diff > (freq * 10)) { // DT = 10
         if (diff <= 20000 && sensors[id]['mode'] == 1) {
           // ignore
         } else {

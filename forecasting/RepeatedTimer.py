@@ -16,6 +16,7 @@ class RepeatedTimer:
         self.thread.start()
 
     def _target(self):
+        """"If the `interval` is passed, the method performs the `function` on the assigned thread."""
         while not self.event.wait(self._time):
             self.function(*self.args, **self.kwargs)
 
@@ -24,6 +25,7 @@ class RepeatedTimer:
         return self.interval - ((time.time() - self.start) % self.interval)
 
     def stop(self):
+        """" Stop the thread"""
         self.event.set()
         self.thread.join()
 

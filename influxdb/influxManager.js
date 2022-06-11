@@ -18,7 +18,7 @@ class InfluxManager {
         if (bucket == undefined || value == null) {
             return false;
         }
-        if (bucket == "aqi") {
+        if (bucket == "aqi" || bucket == "gas") {
             point = point.intField(bucket, value)
         } else {
             point = point.floatField(bucket, value)
@@ -131,7 +131,7 @@ class InfluxManager {
                     if (bucket == undefined || value == null) {
                         return false;
                     }
-                    if (bucket == "aqi") {
+                    if (bucket == "aqi" || bucket == "gas") {
                         point = point.intField(bucket, value)
                     } else {
                         point = point.floatField(bucket, value)
