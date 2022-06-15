@@ -2,7 +2,7 @@
 
 <p>
   <img src="https://img.shields.io/static/v1?label=build&message=passing&color=%3CCOLOR%3E" alt="alternatetext">
-	<img src="https://img.shields.io/badge/state-develop-yellow" alt="alternatetext">
+	<img src="https://img.shields.io/badge/state-complete-orange" alt="alternatetext">
   <img src="https://img.shields.io/badge/Climate-DHT22-blue" alt="alternatetext">
   <img src="https://img.shields.io/badge/Gas-MQ2-green" alt="alternatetext">
 </p>
